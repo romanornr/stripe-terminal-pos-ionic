@@ -1,0 +1,7 @@
+{
+  "name": "stripe-terminal-pos-ionic",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "vue-vite"
+}
