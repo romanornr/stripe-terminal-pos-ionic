@@ -12,6 +12,7 @@
         </ion-toolbar>
       </ion-header>
 
+      <!-- Amount Display -->
       <ion-card class="amount-display">
         <ion-card-content>
           <ion-text color="medium">
@@ -25,6 +26,12 @@
          </ion-item>
         </ion-card-content>
       </ion-card>
+
+
+      <!-- Pay button -->
+       <div class="pay-button-container ion-padding">
+        <ion-button expand="block" color="primary" class="pay-button" @click="handlePayment">Pay with Terminal</ion-button>
+       </div>
 
     </ion-content>
   </ion-page>
@@ -67,6 +74,27 @@ import { readonly } from 'vue';
   font-weight: 600;
   margin-right: 4px;
   color: var(--ion-color-dark);
+}
+
+.pay-button-container {
+  bottom: 70px;
+  background-color: var(--ion-background-color);
+  padding-bottom: 8px;
+}
+
+.pay-button {
+  margin: 0;
+  height: 64px;
+  font-size: 20px;
+  font-weight: 600;
+  --border-radius: 32px;
+  --background: #2563eb;
+  --background-activated: #1d4ed8;
+  --background-hover: #1d4ed8;
+  --box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2), 0 2px 4px -1px rgba(37, 99, 235, 0.1);
+  --padding-top: 20px;
+  --padding-bottom: 20px;
+  --ripple-color: rgba(255, 255, 255, 0.2);
 }
 
 </style>
