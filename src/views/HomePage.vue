@@ -19,7 +19,7 @@
             <h2>Amount</h2>
           </ion-text>
          <ion-item lines="none" class="amount-input-container">
-          <ion-input v-model="amount" :readonly="true" placeholder="0.00" type="text" inputmode="decimal" class="amount-input">
+          <ion-input :value="amount" :readonly="true" placeholder="0.00" type="text" inputmode="decimal" class="amount-input">
             <div slot="start" class="currency-symbol">€</div>
           </ion-input>
           
@@ -71,17 +71,43 @@ const DisplayAmount = computed(() => {
 const handleKeyPress = (key: string) => {
   Haptics.impact({ style: ImpactStyle.Light }); // Haptic feedback
 
+  // if (key === 'CLEAR') {
+  //   amount.value = '0';
+  // } else if (key === '.' && !amount.value.includes('.')) {
+  //   amount.value += key;
+  // } else if (key !== '.') {
+  //   amount.value = amount.value === '0' ? key : amount.value + key;
+  // }
   if (key === 'CLEAR') {
     amount.value = '0';
-  } else if (key === '.' && !amount.value.includes('.')) {
-    amount.value += key;
-  } else if (key !== '.') {
-    amount.value = amount.value === '0' ? key : amount.value + key;
+    return;
   }
+
+  if (key === '.') {
+    // only add ',' if it's not already there
+    if (!amount.value.includes('.')) {
+      amount.value += key;
+  }
+  return;
+}
+
+// For numeric keys, check if we already have a decimal and limit the numbers of digits after the decimal
+const decimalIndex = amount.value.indexOf('.');
+if (decimalIndex !== -1) {
+  const decimalPart = amount.value.slice(decimalIndex + 1);
+  if (decimalPart.length > 1) {
+    return; // if already have 2 digits, do nothing
+  }
+}
+
+// appent the numeric key, but if the current value is '0', replace it with the key
+amount.value = amount.value === '0' ? key : amount.value + key;
 };
+
 
 const handlePayment = async () => {
   console.log('Payment initiated');
+  console.log(parseFloat(amount.value))
 }
 
 </script>
