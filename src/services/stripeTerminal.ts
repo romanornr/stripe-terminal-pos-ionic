@@ -71,6 +71,33 @@ class StripeTerminalService {
 
     return discoverResult.discoveredReaders[0];
   }
+
+  async connectAndInitializeReader() {
+    if (!this.terminal) await this.initialize();
+
+    // if already connected, skip
+    if (this.isConnected.value && this.reader) {
+      return this.reader;
+    }
+
+    try {
+      const reader = await this.discoverReaders();
+      const connectResult = await this.terminal.connectReader(reader);
+
+      if (connectResult.error) {
+        throw new Error(`Error connecting to reader: ${connectResult.error.message}`);
+      }
+
+      this.reader = reader;
+      this.isConnected.value = true;
+      console.log('Reader connected successfully at the backend', this.reader);
+
+      return this.reader;
+    } catch (error) {
+      console.error('Error connecting to reader', error);
+      throw error;
+    }
+  }
 }
 
 export const stripeTerminal = new StripeTerminalService();

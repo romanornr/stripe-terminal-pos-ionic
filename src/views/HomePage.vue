@@ -37,29 +37,21 @@
           </ion-col>
         </ion-row>
        </ion-grid>
+       
+       <!-- Pay button -->
+        <div class="pay-button-container ion-padding">
+          <ion-button expand="block" color="primary" class="pay-button" @click="handlePayment">Pay with Terminal</ion-button>
+        </div>
+        
+        
+        <ion-content class="ion-padding">
+          <ion-button @click="handleConnect">Discover & Connect</ion-button>
+          <p v-if="connected">Reader connected successfully!</p>
+          <p v-else>Not connected</p>
+        </ion-content>
 
-
-      <!-- Pay button -->
-       <div class="pay-button-container ion-padding">
-        <ion-button expand="block" color="primary" class="pay-button" @click="handlePayment">Pay with Terminal</ion-button>
-       </div>
-
-             <ion-content class="ion-padding">
-      <ion-button @click="handleConnect">Discover & Connect</ion-button>
-      
-      <p v-if="connected">
-        Reader connected successfully!
-      </p>
-      <p v-else>
-        Not connected.
-      </p>
-    </ion-content>
-
-    </ion-content>
-  </ion-page>
-
-
-
+  </ion-content>
+</ion-page>
 
 </template>
 
@@ -121,28 +113,15 @@ const handlePayment = async () => {
 
 async function handleConnect() {
   try {
-    await stripeTerminal.initialize();
-    const reader = await stripeTerminal.discoverReaders();
-
-    console.log('Discover result', reader);
-
-    if (!reader?.id) {
-      throw new Error('No reader found');
-    }
-
-    // const reader = discoverResult.discoveredReaders[0];
-    // const connectResult = await stripeTerminal.connectReader(reader);
-    
-    // if (connectResult.error) {
-    //   throw new Error(connectResult.error.message);
-    // }
-
-    // stripeTerminal.isConnected.value = true;
-    // connected.value = true;
+    const reader = await stripeTerminal.connectAndInitializeReader();
+    console.log('Reader connected successfully at the frontend', reader);
+    connected.value = true;
   } catch (error) {
     console.error('Error connecting to reader', error);
   }
 }
+
+
 </script>
 
 <style scoped>
