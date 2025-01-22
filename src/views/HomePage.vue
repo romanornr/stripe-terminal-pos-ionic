@@ -44,15 +44,34 @@
         <ion-button expand="block" color="primary" class="pay-button" @click="handlePayment">Pay with Terminal</ion-button>
        </div>
 
+             <ion-content class="ion-padding">
+      <ion-button @click="handleConnect">Discover & Connect</ion-button>
+      
+      <p v-if="connected">
+        Reader connected successfully!
+      </p>
+      <p v-else>
+        Not connected.
+      </p>
+    </ion-content>
+
     </ion-content>
   </ion-page>
+
+
+
+
 </template>
 
 <script setup lang="ts">
 import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonGrid, IonRow, IonCol, IonButton, IonInput, IonCard, IonCardContent, IonText, IonItem } from '@ionic/vue';
 import { readonly, computed, ref } from 'vue';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { stripeTerminal } from '@/services/stripeTerminal';
+import { disc } from 'ionicons/icons';
 
+// Reactive ref for connected state
+const connected = ref(false);
 
 // State 
 const amount = ref('0');
@@ -70,32 +89,22 @@ const DisplayAmount = computed(() => {
 
 const handleKeyPress = (key: string) => {
   Haptics.impact({ style: ImpactStyle.Light }); // Haptic feedback
-
-  // if (key === 'CLEAR') {
-  //   amount.value = '0';
-  // } else if (key === '.' && !amount.value.includes('.')) {
-  //   amount.value += key;
-  // } else if (key !== '.') {
-  //   amount.value = amount.value === '0' ? key : amount.value + key;
-  // }
   if (key === 'CLEAR') {
     amount.value = '0';
     return;
   }
-
-  if (key === '.') {
+  if (key === '.') { // only add ',' if it's not already there
     // only add ',' if it's not already there
     if (!amount.value.includes('.')) {
       amount.value += key;
   }
   return;
 }
-
 // For numeric keys, check if we already have a decimal and limit the numbers of digits after the decimal
 const decimalIndex = amount.value.indexOf('.');
 if (decimalIndex !== -1) {
   const decimalPart = amount.value.slice(decimalIndex + 1);
-  if (decimalPart.length > 1) {
+  if (decimalPart.length > 2) {
     return; // if already have 2 digits, do nothing
   }
 }
@@ -110,6 +119,30 @@ const handlePayment = async () => {
   console.log(parseFloat(amount.value))
 }
 
+async function handleConnect() {
+  try {
+    await stripeTerminal.initialize();
+    const reader = await stripeTerminal.discoverReaders();
+
+    console.log('Discover result', reader);
+
+    if (!reader?.id) {
+      throw new Error('No reader found');
+    }
+
+    // const reader = discoverResult.discoveredReaders[0];
+    // const connectResult = await stripeTerminal.connectReader(reader);
+    
+    // if (connectResult.error) {
+    //   throw new Error(connectResult.error.message);
+    // }
+
+    // stripeTerminal.isConnected.value = true;
+    // connected.value = true;
+  } catch (error) {
+    console.error('Error connecting to reader', error);
+  }
+}
 </script>
 
 <style scoped>
