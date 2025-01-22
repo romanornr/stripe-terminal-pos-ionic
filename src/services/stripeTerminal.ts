@@ -11,6 +11,13 @@ class StripeTerminalService {
   // Reactive ref to indicate if the terminal is connected
   public isConnected = ref(false);
 
+  /** Base URL for your backend server */
+  private baseUrl = 'http://localhost:4242';
+
+  constructor(baseUrl = 'http://localhost:4242') {
+    this.baseUrl = baseUrl;
+  }
+
   // Initialize the Terminal (create a new instance)
   // If already initialized, return the existing instance
   async initialize() {
@@ -18,7 +25,7 @@ class StripeTerminalService {
 
   this.terminal = StripeTerminal.create({
     onFetchConnectionToken: async () => {
-      const response = await fetch('http://localhost:4242/connection-token', {
+      const response = await fetch(`${this.baseUrl}/connection-token`, {
         method: 'POST',
       });
       const responseJson = await response.json();
@@ -39,7 +46,7 @@ class StripeTerminalService {
   async getLocationId() {
     if (this.locationId) return this.locationId;
 
-    const response = await fetch('http://localhost:4242/get-location-id');
+    const response = await fetch(`${this.baseUrl}/get-location-id`);
     const { locationId } = await response.json();
     this.locationId = locationId;
     return this.locationId;
