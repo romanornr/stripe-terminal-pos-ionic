@@ -125,58 +125,58 @@ class StripeTerminalService {
    * @throws Error if client secret is missing or creation fails
    */
   async createPaymentIntent(amount: number) {
-    const amountInCents = Math.round(amount * 100);
+    try {
+      const amountInCents = Math.round(amount * 100);
+      console.log('Creating payment intent for amount:', amountInCents);
 
-    const response = await fetch(`${this.baseUrl}/create-payment-intent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        amount: amountInCents,
-        currency: 'eur'
-      })
-    });
+      const response = await fetch(`${this.baseUrl}/create-payment-intent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: amountInCents,
+          currency: 'eur'
+        })
+      });
 
-    const responseJson = await response.json();
-    const clientSecret = responseJson.data?.clientSecret;
-    if (!clientSecret) {
-      throw new Error('Failed to create payment intent or missing client secret');
+      const responseJson = await response.json();
+      console.log('Server response:', responseJson);
+
+      const clientSecret = responseJson.data?.client_secret;
+      if (!clientSecret) {
+        throw new Error('Failed to create payment intent or missing client secret');
+      }
+      return clientSecret;
+    } catch (error) {
+      console.error('Create payment intent error:', error);
+      throw error;
     }
-    return clientSecret;
   }
 
   /**
-   * Collects a payment from the user using the Stripe Terminal
+   * Collects the payment using the Stripe Terminal
    * @param clientSecret - The client secret for the payment intent
-   * @param timeOutMs - The timeout in milliseconds for the payment collection
+   * @param timeOutMs - The timeout in milliseconds
    * @returns Promise<any> - The result of the payment collection
-   * @throws Error if the payment collection fails or times out
+   * @throws Error if the payment collection fails
    */
-  async collectTerminalPayment(clientSecret: string, timeOutMs = 10000) {
+  async collectTerminalPayment(clientSecret: string, timeOutMs = 25000) {
     if(!this.terminal) {
       throw new Error('Terminal is not initialized');
     }
 
-    const collectPromise = this.terminal.collectPaymentMethod(clientSecret)
+    try {
+      // Simply collect the payment method first
+      const collectResult = await this.terminal.collectPaymentMethod(clientSecret);
+      
+      if(collectResult.error) {
+        throw new Error(`Error collecting payment: ${collectResult.error.message}`);
+      }
 
-    // Setup a timeout that calls cancelCollectPaymenMethod after X ms
-    const timeoutPromise = new Promise((_, reject) => {
-      const timer = setTimeout(async () => {
-        try {
-          await this.terminal.cancelCollectPaymentMethod();
-        } catch (error) {
-          reject(error);
-        }
-      }, timeOutMs);
-    })
-
-    const collectResult: any = Promise.race([collectPromise, timeoutPromise]);
-
-    // If the user tapped in time, check for an error
-    if(collectResult.error) {
-      throw new Error(`Error collecting payment: ${collectResult.error.message}`);
+      return collectResult.paymentIntent;
+    } catch (error) {
+      console.error('Collection error:', error);
+      throw error;
     }
-
-    return collectResult;
   }
 
   /**
