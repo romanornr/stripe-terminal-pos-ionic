@@ -1,14 +1,18 @@
+import { json } from 'stream/consumers';
 import { ref } from 'vue';
 
 // Declare StripeTerminal as any because it's a global from the <script> tag
 declare const StripeTerminal: any;
 
+/**
+ * Service class for handling Stripe Terminal operations
+ */
 class StripeTerminalService {
   private terminal: any = null;
   private locationId: string | null = null;
   private reader: any = null;
 
-  // Reactive ref to indicate if the terminal is connected
+  /** Reactive ref to indicate if the terminal is connected */
   public isConnected = ref(false);
 
   /** Base URL for your backend server */
@@ -18,31 +22,37 @@ class StripeTerminalService {
     this.baseUrl = baseUrl;
   }
 
-  // Initialize the Terminal (create a new instance)
-  // If already initialized, return the existing instance
+  /**
+   * Initializes the Stripe Terminal
+   * @returns Promise<any> - The initialized terminal
+   * @throws Error if the terminal initialization fails
+   */
   async initialize() {
-	if (this.terminal) return this.terminal;
+    if (this.terminal) return this.terminal;
 
-  this.terminal = StripeTerminal.create({
-    onFetchConnectionToken: async () => {
-      const response = await fetch(`${this.baseUrl}/connection-token`, {
-        method: 'POST',
-      });
-      const responseJson = await response.json();
-      console.log('Response', responseJson)
-      return responseJson.data?.secret;
-    },
-    onUnexpectedReaderDisconnect: () => {
-      console.log('Reader disconnected');
-      this.isConnected.value = false;
-      this.reader = null;
-    }
-  });
-
-  return this.terminal;
+    this.terminal = StripeTerminal.create({
+      onFetchConnectionToken: async () => {
+        const response = await fetch(`${this.baseUrl}/connection-token`, {
+          method: 'POST',
+        });
+        const responseJson = await response.json();
+        console.log('Response', responseJson)
+        return responseJson.data?.secret;
+      },
+      onUnexpectedReaderDisconnect: () => {
+        console.log('Reader disconnected');
+        this.isConnected.value = false;
+        this.reader = null;
+      }
+    });
+    return this.terminal;
   }
 
-  // Get the location ID from the server
+  /**
+   * Gets the location ID from the server
+   * @returns Promise<string> - The location ID
+   * @throws Error if the location ID is not found
+   */
   async getLocationId() {
     if (this.locationId) return this.locationId;
 
@@ -52,7 +62,11 @@ class StripeTerminalService {
     return this.locationId;
   }
 
-  // Discover a reader
+  /**
+   * Discovers a reader
+   * @returns Promise<any> - The discovered reader
+   * @throws Error if the reader discovery fails
+   */
   async discoverReaders() {
     if (!this.terminal) await this.initialize();
 
@@ -72,6 +86,11 @@ class StripeTerminalService {
     return discoverResult.discoveredReaders[0];
   }
 
+  /**
+   * Connects and initializes the reader
+   * @returns Promise<any> - The connected reader
+   * @throws Error if the reader connection fails
+   */
   async connectAndInitializeReader() {
     if (!this.terminal) await this.initialize();
 
@@ -98,6 +117,88 @@ class StripeTerminalService {
       throw error;
     }
   }
+
+  /**
+   * Creates a payment intent with the specified amount
+   * @param amount - The payment amount in whole currency units (e.g., euros)
+   * @returns Promise<string> - The client secret for the payment intent
+   * @throws Error if client secret is missing or creation fails
+   */
+  async createPaymentIntent(amount: number) {
+    const amountInCents = Math.round(amount * 100);
+
+    const response = await fetch(`${this.baseUrl}/create-payment-intent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount: amountInCents,
+        currency: 'eur'
+      })
+    });
+
+    const responseJson = await response.json();
+    const clientSecret = responseJson.data?.clientSecret;
+    if (!clientSecret) {
+      throw new Error('Failed to create payment intent or missing client secret');
+    }
+    return clientSecret;
+  }
+
+  /**
+   * Collects a payment from the user using the Stripe Terminal
+   * @param clientSecret - The client secret for the payment intent
+   * @param timeOutMs - The timeout in milliseconds for the payment collection
+   * @returns Promise<any> - The result of the payment collection
+   * @throws Error if the payment collection fails or times out
+   */
+  async collectTerminalPayment(clientSecret: string, timeOutMs = 10000) {
+    if(!this.terminal) {
+      throw new Error('Terminal is not initialized');
+    }
+
+    const collectPromise = this.terminal.collectPaymentMethod(clientSecret)
+
+    // Setup a timeout that calls cancelCollectPaymenMethod after X ms
+    const timeoutPromise = new Promise((_, reject) => {
+      const timer = setTimeout(async () => {
+        try {
+          await this.terminal.cancelCollectPaymentMethod();
+        } catch (error) {
+          reject(error);
+        }
+      }, timeOutMs);
+    })
+
+    const collectResult: any = Promise.race([collectPromise, timeoutPromise]);
+
+    // If the user tapped in time, check for an error
+    if(collectResult.error) {
+      throw new Error(`Error collecting payment: ${collectResult.error.message}`);
+    }
+
+    return collectResult;
+  }
+
+  /**
+   * Processes the payment using the Stripe Terminal
+   * @param paymentIntent - The payment intent to process
+   * @returns Promise<any> - The result of the payment processing
+   * @throws Error if the payment processing fails
+   */
+  async processTerminalPayment(paymentIntent: any) {
+    if (!this.terminal) {
+      throw new Error('Terminal is not initialized');
+    }
+
+    const processResult = await this.terminal.processPayment(paymentIntent)
+    if (processResult.error) {
+      throw new Error(`Error processing payment: ${processResult.error.message}`);
+    }
+
+    return processResult;
+  }
+
 }
 
+// Export at the module level, not inside the class
 export const stripeTerminal = new StripeTerminalService();
