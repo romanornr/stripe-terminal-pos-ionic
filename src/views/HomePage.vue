@@ -62,6 +62,9 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { stripeTerminal } from '@/services/stripeTerminal';
 import { disc } from 'ionicons/icons';
 
+const isProcessing = ref(false);
+const errorMessage = ref('');
+
 // Reactive ref for connected state
 const connected = ref(false);
 
@@ -107,9 +110,40 @@ amount.value = amount.value === '0' ? key : amount.value + key;
 
 
 const handlePayment = async () => {
-  console.log('Payment initiated');
-  console.log(parseFloat(amount.value))
-}
+  isProcessing.value = true;
+  errorMessage.value = '';
+
+
+  try {
+
+    await handleConnect();
+    
+    console.log('Starting payment with amount:', amount.value);
+    
+    const clientSecret = await stripeTerminal.createPaymentIntent(parseFloat(amount.value));
+    console.log('Client secret created:', clientSecret);
+    
+    if (!clientSecret) {
+      throw new Error('Failed to create payment intent');
+    }
+
+    const collectResult = await stripeTerminal.collectTerminalPayment(clientSecret);
+    console.log('Collect result:', collectResult);
+    
+    if (!collectResult) {
+      throw new Error('Failed to collect payment');
+    }
+
+    const processResult = await stripeTerminal.processTerminalPayment(collectResult);
+    console.log('Process result:', processResult);
+
+  } catch (error: any) {
+    console.error('Payment error:', error);
+    errorMessage.value = error.message || 'Payment failed';
+  } finally {
+    isProcessing.value = false;
+  }
+};
 
 async function handleConnect() {
   try {
