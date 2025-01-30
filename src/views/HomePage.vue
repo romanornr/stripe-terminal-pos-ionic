@@ -121,7 +121,6 @@ const handlePayment = async () => {
     console.log('Starting payment with amount:', amount.value);
     
     const clientSecret = await stripeTerminal.createPaymentIntent(parseFloat(amount.value));
-    console.log('Client secret created:', clientSecret);
     
     if (!clientSecret) {
       throw new Error('Failed to create payment intent');
