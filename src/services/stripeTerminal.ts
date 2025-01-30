@@ -217,7 +217,7 @@ class StripeTerminalService {
       throw error;
     }
   }
-
+  
   /**
    * Processes the payment using the Stripe Terminal
    * @param paymentIntent - The payment intent to process

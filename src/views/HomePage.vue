@@ -113,9 +113,7 @@ const handlePayment = async () => {
   isProcessing.value = true;
   errorMessage.value = '';
 
-
   try {
-
     await handleConnect();
     
     console.log('Starting payment with amount:', amount.value);
@@ -125,6 +123,9 @@ const handlePayment = async () => {
     if (!clientSecret) {
       throw new Error('Failed to create payment intent');
     }
+
+    // Clear the amount display when payment starts
+    amount.value = '0';
 
     const collectResult = await stripeTerminal.collectTerminalPayment(clientSecret);
     console.log('Collect result:', collectResult);
