@@ -1,15 +1,87 @@
 import { json } from 'stream/consumers';
 import { ref } from 'vue';
 
-// Declare StripeTerminal as any because it's a global from the <script> tag
-declare const StripeTerminal: any;
+// -- INTERFACES --
+
+interface StripeTerminalObject {
+  create: (options: StripeTerminalOptions) => StripeTerminalObject
+}
+
+interface StripeTerminalObject {
+  discoverReaders: (options: DiscoverReaderOptions) => Promise<DiscoverResult>;
+  connectReader: (reader: Reader) => Promise<ConnectResult>;
+  collectPaymentMethod: (clientSecret: string) => Promise<CollectResult>;
+  processPayment: (paymentIntent: any) => Promise<ProcessPaymentResult>;
+}
+
+interface StripeTerminalOptions {
+  onFetchConnectionToken: () => Promise<string>;
+  onUnexpectedReaderDisconnect: () => void;
+}
+
+interface Reader {
+  id: string;
+  object: string; // It's always 'terminal.reader'
+  action: any; // come back to this - it might be a null or an object representing the action
+  base_url: string;
+  device_sw_version: string;
+  device_type: string;
+  ip_address: string;
+  label: string;
+  last_seen_at: number;
+  livemode: boolean;
+  location: string;
+  metadata: {};
+  serial_number: string;
+  status: string;
+}
+
+interface DiscoverReaderOptions {
+  location: string;
+}
+
+interface DiscoverResult {
+  error?: { message: string };
+  discoveredReaders?: Reader[];
+}
+
+interface ConnectResult {
+  error?: { message: string };
+  reader?: Reader;
+}
 
 interface CollectResult {
   paymentIntent: any;
 }
 
+interface ProcessPaymentResult {
+  error?: { message: string };
+  paymentIntent?: any;
+}
+
+// Constants for API endpoints
+const API_BASE_URL = 'http://localhost:4242';
+const CONNECTION_TOKEN_ENDPOINT = `${API_BASE_URL}/connection-token`;
+const GET_LOCATION_ID_ENDPOINT = `${API_BASE_URL}/get-location-id`;
+const CREATE_PAYMENT_INTENT_ENDPOINT = `${API_BASE_URL}/create-payment-intent`;
+const COLLECT_PAYMENT_METHOD_ENDPOINT = `${API_BASE_URL}/collect-payment-method`;
+const PROCESS_PAYMENT_ENDPOINT = `${API_BASE_URL}/process-payment`;
+
+// We have to declare stripeTerminal as "any" because it's a global from the <script> tag
+// This should be resolved in a future version of the Stripe Terminal SDK
+declare const StripeTerminal: any;
+
 /**
- * Service class for handling Stripe Terminal operations
+ * StripeTerminalService
+ * 
+ * Abstracts away:
+ *  - The Stripe Terminal SDK
+ *  - Terminal init 
+ *  - Connection token fetching
+ *  - Reader discovery + connection
+ *  - Payment intent creation
+ *  - Payment collection + processPayment with auto-cancel
+ *  - (optional) readers/cancel-action route
  */
 class StripeTerminalService {
   private terminal: any = null;
@@ -36,15 +108,15 @@ class StripeTerminalService {
 
     this.terminal = StripeTerminal.create({
       onFetchConnectionToken: async () => {
-        const response = await fetch(`${this.baseUrl}/connection-token`, {
+        const response = await fetch(CONNECTION_TOKEN_ENDPOINT, {
           method: 'POST',
         });
         const responseJson = await response.json();
-        console.log('Response', responseJson)
+        console.log('Response from connection token endpoint', responseJson)
         return responseJson.data?.secret;
       },
       onUnexpectedReaderDisconnect: () => {
-        console.log('Reader disconnected');
+        console.log('Reader disconnected unexpectedly');
         this.isConnected.value = false;
         this.reader = null;
       }
