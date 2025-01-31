@@ -85,7 +85,8 @@ declare const StripeTerminal: any;
  */
 class StripeTerminalService {
   private terminal: any = null;
-  private locationId: string | null = null;
+  //private locationId: string | null = null;
+  private _locationId: string | null = null;
   private reader: any = null;
 
   /** Reactive ref to indicate if the terminal is connected */
@@ -99,7 +100,8 @@ class StripeTerminalService {
   }
 
   /**
-   * Initializes the Stripe Terminal
+   * Initializes the Stripe Terminal (creates the Terminal instance)
+   * If already initialized, returns the existing instance
    * @returns Promise<any> - The initialized terminal
    * @throws Error if the terminal initialization fails
    */
@@ -129,13 +131,30 @@ class StripeTerminalService {
    * @returns Promise<string> - The location ID
    * @throws Error if the location ID is not found
    */
-  async getLocationId() {
-    if (this.locationId) return this.locationId;
+  async getLocationId(): Promise<string> {
+    if (this._locationId) return this._locationId;
 
-    const response = await fetch(`${this.baseUrl}/get-location-id`);
-    const { locationId } = await response.json();
-    this.locationId = locationId;
-    return this.locationId;
+    const response = await fetch(GET_LOCATION_ID_ENDPOINT);
+    const responseJson = await response.json();
+    console.log('Response from get-location-id endpoint', responseJson.data.location_id)
+
+    const locationId  = responseJson.data.location_id;
+
+
+    // Error handling in no locationId is found
+    if (typeof locationId !== 'string' || locationId.trim() === '') {
+      console.log('Invalid locationID received from backend', locationId)
+      throw new Error('Error: Invalid location ID received from backend')
+    }
+
+    this._locationId = locationId;
+    return this._locationId;
+    // if (this.locationId) return this.locationId;
+
+    // const response = await fetch(`${this.baseUrl}/get-location-id`);
+    // const { locationId } = await response.json();
+    // this.locationId = locationId;
+    // return this.locationId;
   }
 
   /**
