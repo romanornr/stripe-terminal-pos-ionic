@@ -43,12 +43,19 @@
           <ion-button expand="block" color="primary" class="pay-button" @click="handlePayment">Pay with Terminal</ion-button>
         </div>
         
-        
         <ion-content class="ion-padding">
           <ion-button @click="handleConnect">Discover & Connect</ion-button>
           <p v-if="connected">Reader connected successfully!</p>
           <p v-else>Not connected</p>
         </ion-content>
+
+        <!-- Terminal status -->
+         <div class="terminal-status ion-padding-horizontal">
+          <ion-chip :color="terminalStatus.color" class="terminal-chip">
+            <ion-icon :icon="terminalStatus.icon"></ion-icon>
+            <ion-label>{{  terminalStatus.text }}</ion-label>
+          </ion-chip>
+         </div>
 
   </ion-content>
 </ion-page>
@@ -60,7 +67,8 @@ import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonGrid, IonRow, 
 import { readonly, computed, ref } from 'vue';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { stripeTerminal } from '@/services/stripeTerminal';
-import { disc } from 'ionicons/icons';
+import { checkmarkCircle, disc, syncCircle, terminal, alertCircle } from 'ionicons/icons';
+import { toastController } from '@ionic/vue';
 
 const isProcessing = ref(false);
 const errorMessage = ref('');
@@ -77,10 +85,19 @@ const keypadRows = [
   ['CLEAR', '0', '.'],
 ]
 
+// Terminal status states
+const terminalStates = {
+  ready: { color: 'success', icon: checkmarkCircle, text: 'Terminal ready'},
+  connecting: { color: 'warning', icon: syncCircle, text: 'Connecting to terminal...'},
+  disconnected: { color: 'danger', icon: alertCircle, text: 'Terminal disconnected'},
+};
+
+const terminalStatus = ref(terminalStates.disconnected)
+
 const DisplayAmount = computed(() => {
  const num = parseFloat(amount.value)
  return isNaN(num) ? '0.00' : num.toFixed(2)
-})
+});
 
 const handleKeyPress = (key: string) => {
   Haptics.impact({ style: ImpactStyle.Light }); // Haptic feedback
@@ -95,6 +112,7 @@ const handleKeyPress = (key: string) => {
   }
   return;
 }
+
 // For numeric keys, check if we already have a decimal and limit the numbers of digits after the decimal
 const decimalIndex = amount.value.indexOf('.');
 if (decimalIndex !== -1) {
@@ -150,6 +168,19 @@ async function handleConnect() {
     const reader = await stripeTerminal.connectAndInitializeReader();
     console.log('Reader connected successfully at the frontend', reader);
     connected.value = true;
+
+    // Show success toast
+    const toast = await toastController.create({
+      message: 'Reader connected successfully',
+      duration: 2000,
+      position: 'top',
+      color: 'success',
+      icon: 'checkmark-circle'
+    });
+    await toast.present();
+
+    terminalStatus.value = terminalStates.ready;
+
   } catch (error) {
     console.error('Error connecting to reader', error);
   }
@@ -236,6 +267,22 @@ ion-col {
   --padding-top: 20px;
   --padding-bottom: 20px;
   --ripple-color: rgba(255, 255, 255, 0.2);
+}
+
+.terminal-status {
+  display: flex;
+  justify-content: center;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+}
+
+.terminal-chip {
+  height: 44px;
+  width: 100%;
+  justify-content: center;
+  --background: var(--ion-color-success-light);
+  --color: var(--ion-color-success-shade);
 }
 
 
