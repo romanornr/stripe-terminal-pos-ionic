@@ -108,8 +108,6 @@ class StripeTerminalService {
   // Expose the state as refs for readony
   public readonly stateRefs = toRefs(this.state)
 
-
-
   /** Base URL for your backend server */
   private baseUrl = 'http://localhost:4242';
 
@@ -117,43 +115,44 @@ class StripeTerminalService {
     this.baseUrl = baseUrl;
   }
 
-  // constructor() {
-  //   this.initialize();
-  // }
-
-  // public async initialize(): Promise<void> {
-  //   if (this.terminal) return;
-
-  //   this.state.isLoading = true;
-  //   this.state.lastError = null;
-  // }
-
 
     /**
    * Initializes the Stripe Terminal (creates the Terminal instance)
-   * If already initialized, returns the existing instance
-   * @returns Promise<any> - The initialized terminal
+   * 
+   * @returns Promise<void>
    * @throws Error if the terminal initialization fails
    */
-  async initialize() {
+  async initialize(): Promise<void> {
     if (this.terminal) return this.terminal;
 
-    this.terminal = StripeTerminal.create({
-      onFetchConnectionToken: async () => {
-        const response = await fetch(CONNECTION_TOKEN_ENDPOINT, {
-          method: 'POST',
-        });
-        const responseJson = await response.json();
-        console.log('Response from connection token endpoint', responseJson)
-        return responseJson.data?.secret;
-      },
-      onUnexpectedReaderDisconnect: () => {
-        console.log('Reader disconnected unexpectedly');
-        this.isConnected.value = false;
-        this.reader = null;
-      }
-    });
-    return this.terminal;
+    this.state.isLoading = true;
+    this.state.lastError = null;
+
+    try {
+      this.terminal = StripeTerminal.create({
+        onFetchConnectionToken: async () => {
+          const response = await fetch(CONNECTION_TOKEN_ENDPOINT, { method: 'POST' });
+          const responseJson = await response.json();
+          if (!responseJson.data?.secret) {
+            throw new Error('Invalid connection token response: missing secret')
+          }
+          console.log('Response from connection token endpoint', responseJson)
+          return responseJson.data?.secret;
+        },
+        onUnexpectedReaderDisconnect: () => {
+          console.log('Reader disconnected unexpectedly');
+          this.state.isConnected = false;
+          this.state.currentReader = null;
+        }
+      });
+      // Pre-fetch the locationId (if needed)
+      await this.getLocationId();
+    } catch (error: any) {
+      console.error('Failed to initialize Stripe Terminal', error.message || error);
+      this.state.lastError = error.message || String(error)
+    } finally {
+      this.state.isLoading = false;
+    }
   }
 
 
