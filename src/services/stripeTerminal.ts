@@ -148,34 +148,43 @@ class StripeTerminalService {
       // Pre-fetch the locationId (if needed)
       await this.getLocationId();
     } catch (error: any) {
-      console.error('Failed to initialize Stripe Terminal', error.message || error);
+      this.handleError(error, 'Failed to initialize Stripe Terminal');
+      //console.error('Failed to initialize Stripe Terminal', error.message || error);
       this.state.lastError = error.message || String(error)
     } finally {
       this.state.isLoading = false;
     }
   }
 
-
+  /**
+   * Fetches the location ID from the backend
+   * @returns Promise<string> - The location ID
+   * @throws Error if the location ID is invalid or retrieval fails
+   */
   async getLocationId(): Promise<string> {
-
     if (this.locationId) return this.locationId;
 
-    const response = await fetch(GET_LOCATION_ID_ENDPOINT);
-    const responseJson = await response.json();
-    console.log('Response from get-location-id endpoint', responseJson.data.location_id)
+    this.state.isLoading = true;
+    this.state.lastError = null;
 
-    const locationId  = responseJson.data.location_id;
+    try {
+      const response = await fetch(GET_LOCATION_ID_ENDPOINT);
+      const responseJson = await response.json();
+      const locationId = responseJson.data.location_id || responseJson.locationId;
 
-
-    // Error handling in no locationId is found
-    if (typeof locationId !== 'string' || locationId.trim() === '') {
-      console.log('Invalid locationID received from backend', locationId)
-      throw new Error('Error: Invalid location ID received from backend')
+      if (typeof locationId !== 'string' || locationId.trim() === '') {
+        throw new Error('Invalid location ID received from backend');
+      }
+      this.locationId = locationId // store the locationId
+      return locationId;
+    } catch (error) {
+      this.handleError(error, 'Failed to get location ID');
+      throw error;
+    } finally {
+      this.state.isLoading = false;
     }
-
-    this.locationId = locationId;
-    return this.locationId;
   }
+
 
   /**
    * Discovers a reader
@@ -348,7 +357,21 @@ class StripeTerminalService {
     return processResult;
   }
 
+
+  /**
+   * Centralized error handling
+   * @param error - The error to handle
+   * @param message - Optional additional error message
+   * @private
+   */
+  private handleError(error: any, message?: string): void {
+    const errorMessage = message ? `${message}: ${error.message} || error`: error.message || error;
+    console.error(errorMessage);
+    this.state.lastError = errorMessage;
+  }  
 }
+
+
 
 // Export at the module level, not inside the class
 export const stripeTerminal = new StripeTerminalService();
