@@ -1,5 +1,5 @@
 import { json } from 'stream/consumers';
-import { ref } from 'vue';
+import { ref, reactive, toRefs } from 'vue';
 
 // -- INTERFACES --
 
@@ -71,6 +71,13 @@ const PROCESS_PAYMENT_ENDPOINT = `${API_BASE_URL}/process-payment`;
 // This should be resolved in a future version of the Stripe Terminal SDK
 declare const StripeTerminal: any;
 
+interface TerminalState {
+  isConnected: boolean;
+  isLoading: boolean;
+  lastError: string | null;
+  currentReader: Reader | null;
+}
+
 /**
  * StripeTerminalService
  * 
@@ -85,12 +92,23 @@ declare const StripeTerminal: any;
  */
 class StripeTerminalService {
   private terminal: any = null;
-  //private locationId: string | null = null;
-  private _locationId: string | null = null;
+  private locationId: string | null = null;
   private reader: any = null;
 
-  /** Reactive ref to indicate if the terminal is connected */
+    /** Reactive ref to indicate if the terminal is connected */
   public isConnected = ref(false);
+
+  private state =  reactive<TerminalState>({
+    isConnected: false,
+    isLoading: false,
+    lastError: null,
+    currentReader: null,
+  });
+
+  // Expose the state as refs for readony
+  public readonly stateRefs = toRefs(this.state)
+
+
 
   /** Base URL for your backend server */
   private baseUrl = 'http://localhost:4242';
@@ -99,7 +117,19 @@ class StripeTerminalService {
     this.baseUrl = baseUrl;
   }
 
-  /**
+  // constructor() {
+  //   this.initialize();
+  // }
+
+  // public async initialize(): Promise<void> {
+  //   if (this.terminal) return;
+
+  //   this.state.isLoading = true;
+  //   this.state.lastError = null;
+  // }
+
+
+    /**
    * Initializes the Stripe Terminal (creates the Terminal instance)
    * If already initialized, returns the existing instance
    * @returns Promise<any> - The initialized terminal
@@ -126,13 +156,10 @@ class StripeTerminalService {
     return this.terminal;
   }
 
-  /**
-   * Gets the location ID from the server
-   * @returns Promise<string> - The location ID
-   * @throws Error if the location ID is not found
-   */
+
   async getLocationId(): Promise<string> {
-    if (this._locationId) return this._locationId;
+
+    if (this.locationId) return this.locationId;
 
     const response = await fetch(GET_LOCATION_ID_ENDPOINT);
     const responseJson = await response.json();
@@ -147,14 +174,8 @@ class StripeTerminalService {
       throw new Error('Error: Invalid location ID received from backend')
     }
 
-    this._locationId = locationId;
-    return this._locationId;
-    // if (this.locationId) return this.locationId;
-
-    // const response = await fetch(`${this.baseUrl}/get-location-id`);
-    // const { locationId } = await response.json();
-    // this.locationId = locationId;
-    // return this.locationId;
+    this.locationId = locationId;
+    return this.locationId;
   }
 
   /**
