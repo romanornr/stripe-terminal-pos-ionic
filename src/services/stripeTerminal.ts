@@ -375,10 +375,13 @@ class StripeTerminalService {
 
   /**
    * Collects the payment method using the Stripe Terminal
+   * Note: Stripe Terminal SDK does not support AbortController for cancellation.
+   * We use a custom timeout implementation with Promise.race instead.
+   * 
    * @param clientSecret - The client secret for the payment intent
    * @param timeoutMs - The timeout in milliseconds
    * @returns Promise<PaymentIntent> - The payment intent
-   * @throws Error if the payment collection fails
+   * @throws Error if the payment collection fails or times out
    */
   async collectPaymentMethod(clientSecret: string, timeoutMs: number = DEFAULT_PAYMENT_TIMEOUT_MS): Promise<PaymentIntent> {
     if (!this.terminal) {
