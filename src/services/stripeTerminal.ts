@@ -59,7 +59,7 @@ interface CollectResult {
 
 interface ProcessPaymentResult {
   error?: { message: string };
-  paymentIntent?: any;
+  paymentIntent?: PaymentIntent;
 }
 
 interface PaymentIntent {
@@ -410,20 +410,31 @@ class StripeTerminalService {
   /**
    * Processes the payment using the Stripe Terminal
    * @param paymentIntent - The payment intent to process
-   * @returns Promise<any> - The result of the payment processing
+   * @returns Promise<ProcessPaymentResult> - The result of the payment processing
    * @throws Error if the payment processing fails
    */
-  async processTerminalPayment(paymentIntent: any) {
+  async processTerminalPayment(paymentIntent: PaymentIntent): Promise<ProcessPaymentResult> {
     if (!this.terminal) {
-      throw new Error('Terminal is not initialized');
+      await this.initialize();
+      if (!this.terminal) throw new Error('Terminal is not initialized');
     }
 
-    const processResult = await this.terminal.processPayment(paymentIntent)
-    if (processResult.error) {
-      throw new Error(`Error processing payment: ${processResult.error.message}`);
-    }
+    this.state.isLoading = true;
+    this.state.lastError = null;
 
-    return processResult;
+    try {
+      const processResult = await this.terminal.processPayment(paymentIntent)
+      if (processResult.error) {
+        throw new Error(`Error processing payment: ${processResult.error.message}`);
+      }
+      console.log('Payment processed successfully:', processResult);
+      return processResult;
+    } catch (error) {
+      this.handleError(error, 'Error processing payment');
+      throw error;
+    } finally {
+      this.state.isLoading = false;
+    }
   }
 
   /**
