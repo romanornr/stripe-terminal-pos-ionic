@@ -276,9 +276,12 @@ class StripeTerminalService {
    * Creates a payment intent with the specified amount
    * @param amount - The payment amount in whole currency units (e.g., euros)
    * @returns Promise<string> - The client secret for the payment intent
-   * @throws Error if client secret is missing or creation fails
+   * @throws Error if the payment intent creation fails
    */
-  async createPaymentIntent(amount: number) {
+  async createPaymentIntent(amount: number): Promise<string> {
+    this.state.isLoading = true;
+    this.state.lastError = null;
+
     try {
       const amountInCents = Math.round(amount * 100);
       console.log('Creating payment intent for amount:', amountInCents);
@@ -286,14 +289,10 @@ class StripeTerminalService {
       const response = await fetch(`${this.baseUrl}/create-payment-intent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: amountInCents,
-          currency: 'eur'
-        })
+        body: JSON.stringify({amount: amountInCents, currency: 'eur'}),
       });
 
       const responseJson = await response.json();
-      console.log('Server response:', responseJson);
 
       const clientSecret = responseJson.data?.client_secret;
       if (!clientSecret) {
@@ -301,8 +300,10 @@ class StripeTerminalService {
       }
       return clientSecret;
     } catch (error) {
-      console.error('Create payment intent error:', error);
+      this.handleError(error, 'Error creating payment intent');
       throw error;
+    } finally {
+      this.state.isLoading = false;
     }
   }
 
