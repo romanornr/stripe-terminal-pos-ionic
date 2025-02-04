@@ -185,29 +185,31 @@ class StripeTerminalService {
     }
   }
 
-
   /**
-   * Discovers a reader
-   * @returns Promise<any> - The discovered reader
+   * Discovers readers
+   * @returns Promise<Reader | null> - The discovered reader or null if no reader is found
    * @throws Error if the reader discovery fails
    */
-  async discoverReaders() {
+  async discoverReaders(): Promise<Reader | null> {
     if (!this.terminal) await this.initialize();
+    this.state.isLoading = true;
+    this.state.lastError = null;
 
-    const locationId = await this.getLocationId();
-    const discoverResult = await this.terminal.discoverReaders({ location: locationId });
+    try {
+      const locationId = await this.getLocationId();
+      const discoverResult = await this.terminal.discoverReaders({ location: locationId });
+      if (discoverResult.error) {
+        throw new Error(`Error discovering readers: ${discoverResult.error.message}`);
+      }
 
-    if (discoverResult.error) {
-      throw new Error(`Error discovering reader: ${discoverResult.error.message}`);
+      // Return the first reader if available
+      return discoverResult.discoveredReaders?.[0] || null;
+    } catch (error) {
+      this.handleError(error, 'Failed to discover readers');
+      throw error;
+    } finally {
+      this.state.isLoading = false;
     }
-
-    console.log('Discover result backend', discoverResult)
-
-    if (!discoverResult.discoveredReaders?.length) {
-      throw new Error('No readers found. Make sure your device on the same network')
-    }
-
-    return discoverResult.discoveredReaders[0];
   }
 
   /**
