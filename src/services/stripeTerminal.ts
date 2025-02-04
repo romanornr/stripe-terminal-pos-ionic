@@ -8,8 +8,10 @@ interface StripeTerminalObject {
 }
 
 interface StripeTerminalObject {
-  discoverReaders: (options: DiscoverReaderOptions) => Promise<DiscoverResult>;
-  connectReader: (reader: Reader) => Promise<ConnectResult>;
+  //discoverReaders: (options: DiscoverReaderOptions) => Promise<DiscoverResult>;
+  findAvailableReader: () => Promise<Reader>;
+  //connectReader: (reader: Reader) => Promise<ConnectResult>;
+  connectToReader: (reader: Reader) => Promise<ConnectResult>;
   collectPaymentMethod: (clientSecret: string) => Promise<CollectResult>;
   processPayment: (paymentIntent: any) => Promise<ProcessPaymentResult>;
 }
@@ -186,11 +188,11 @@ class StripeTerminalService {
   }
 
   /**
-   * Discovers readers
+   * Finds an available reader
    * @returns Promise<Reader | null> - The discovered reader or null if no reader is found
    * @throws Error if the reader discovery fails
    */
-  async discoverReaders(): Promise<Reader | null> {
+  async findAvailableReader(): Promise<Reader | null> {
     if (!this.terminal) await this.initialize();
     this.state.isLoading = true;
     this.state.lastError = null;
@@ -212,6 +214,38 @@ class StripeTerminalService {
     }
   }
 
+  async connectToReader(reader: Reader): Promise<Reader> {
+    if (!this.terminal) {
+      await this.initialize();
+      if (!this.terminal) throw new Error('Terminal initialization failed');
+    }
+
+    // if already connected to the same reader, return it immediately
+    if (this.state.isConnected && this.state.currentReader?.id == reader.id) {
+      return reader;
+    }
+
+    try {
+      const connectResult = await this.terminal.connectReader(reader);
+
+      if (connectResult.error) throw new Error(`Error connecting to reader: ${connectResult.error.message}`);
+
+      this.state.currentReader = connectResult.reader || reader;
+      this.state.isConnected = true;
+
+      // if state.currentReader is still null, throw an error
+      if (!this.state.currentReader) throw new Error('Failed to connect to reader');
+      
+      console.log('Connected to reader successfully', this.state.currentReader);
+      return this.state.currentReader;
+    } catch (error) {
+      this.handleError(error, 'Failed to connect to reader');
+      throw error;
+    } finally {
+      this.state.isLoading = false;
+    }
+  }
+
   /**
    * Connects and initializes the reader
    * @returns Promise<any> - The connected reader
@@ -220,26 +254,20 @@ class StripeTerminalService {
   async connectAndInitializeReader() {
     if (!this.terminal) await this.initialize();
 
-    // if already connected, skip
-    if (this.isConnected.value && this.reader) {
-      return this.reader;
-    }
-
     try {
-      const reader = await this.discoverReaders();
+      const reader = await this.findAvailableReader();
       const connectResult = await this.terminal.connectReader(reader);
-
+      
       if (connectResult.error) {
         throw new Error(`Error connecting to reader: ${connectResult.error.message}`);
       }
 
-      this.reader = reader;
-      this.isConnected.value = true;
-      console.log('Reader connected successfully at the backend', this.reader);
-
-      return this.reader;
+      this.state.currentReader = connectResult.reader || reader;
+      this.state.isConnected = true;
+      
+      return this.state.currentReader;
     } catch (error) {
-      console.error('Error connecting to reader', error);
+      this.handleError(error, 'Failed to connect to reader');
       throw error;
     }
   }
