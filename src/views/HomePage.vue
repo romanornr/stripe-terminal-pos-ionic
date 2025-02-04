@@ -135,25 +135,27 @@ const handlePayment = async () => {
     await handleConnect();
     
     console.log('Starting payment with amount:', amount.value);
-    
     const clientSecret = await stripeTerminal.createPaymentIntent(parseFloat(amount.value));
     
-    if (!clientSecret) {
-      throw new Error('Failed to create payment intent');
-    }
-
-    // Clear the amount display when payment starts
-    amount.value = '0';
-
-    const collectResult = await stripeTerminal.collectTerminalPayment(clientSecret);
-    console.log('Collect result:', collectResult);
+    // Change from collectTerminalPayment to collectPaymentMethod
+    const collectResult = await stripeTerminal.collectPaymentMethod(clientSecret);
     
-    if (!collectResult) {
-      throw new Error('Failed to collect payment');
-    }
-
+    amount.value = '0';
+    
+    console.log('Collect result:', collectResult);
     const processResult = await stripeTerminal.processTerminalPayment(collectResult);
-    console.log('Process result:', processResult);
+    
+    // Show success toast
+    const toast = await toastController.create({
+      message: 'Payment successful',
+      duration: 2000,
+      position: 'top',
+      color: 'success',
+      icon: 'checkmark-circle'
+    });
+    await toast.present();
+
+    terminalStatus.value = terminalStates.ready;
 
   } catch (error: any) {
     console.error('Payment error:', error);
@@ -284,8 +286,6 @@ ion-col {
   --background: var(--ion-color-success-light);
   --color: var(--ion-color-success-shade);
 }
-
-
 
 /* Added iOS-specific shadow */
 .ios .keypad-btn {

@@ -61,6 +61,30 @@ interface ProcessPaymentResult {
   paymentIntent?: any;
 }
 
+interface PaymentIntent {
+  id: string;
+  object: string;
+  amount: number;
+  currency: string;
+  status: string;
+  client_secret: string;
+  amount_capturable: number;
+  amount_received: number;
+  capture_method: string;
+  confirmation_method: string;
+  created: number;
+  livemode: boolean;
+  payment_method: any;
+  payment_method_types: string[];
+  processing: any;
+  metadata: Record<string, any>;
+  // Add other optional properties
+  description?: string;
+  shipping?: any;
+  receipt_email?: string;
+  last_payment_error?: any;
+}
+
 // Constants for API endpoints
 const API_BASE_URL = 'http://localhost:4242';
 const CONNECTION_TOKEN_ENDPOINT = `${API_BASE_URL}/connection-token`;
@@ -68,6 +92,8 @@ const GET_LOCATION_ID_ENDPOINT = `${API_BASE_URL}/get-location-id`;
 const CREATE_PAYMENT_INTENT_ENDPOINT = `${API_BASE_URL}/create-payment-intent`;
 const COLLECT_PAYMENT_METHOD_ENDPOINT = `${API_BASE_URL}/collect-payment-method`;
 const PROCESS_PAYMENT_ENDPOINT = `${API_BASE_URL}/process-payment`;
+
+const DEFAULT_PAYMENT_TIMEOUT_MS = 25000;
 
 // We have to declare stripeTerminal as "any" because it's a global from the <script> tag
 // This should be resolved in a future version of the Stripe Terminal SDK
@@ -234,8 +260,10 @@ class StripeTerminalService {
       this.state.isConnected = true;
 
       // if state.currentReader is still null, throw an error
-      if (!this.state.currentReader) throw new Error('Failed to connect to reader');
-      
+      if (!this.state.currentReader) {
+        throw new Error('Failed to connect: No reader available');
+      }
+
       console.log('Connected to reader successfully', this.state.currentReader);
       return this.state.currentReader;
     } catch (error) {
@@ -251,10 +279,18 @@ class StripeTerminalService {
    * @returns Promise<any> - The connected reader
    * @throws Error if the reader connection fails
    */
-  async connectAndInitializeReader() {
+  async connectAndInitializeReader(): Promise<Reader> {
     if (!this.terminal) await this.initialize();
 
     try {
+      // Check if already connected and disconnect first
+      if (this.terminal.getConnectionStatus() === 'connected') {
+        console.log('Disconnecting from existing reader...');
+        await this.terminal.disconnectReader();
+        this.state.isConnected = false;
+        this.state.currentReader = null;
+      }
+
       const reader = await this.findAvailableReader();
       const connectResult = await this.terminal.connectReader(reader);
       
@@ -264,7 +300,11 @@ class StripeTerminalService {
 
       this.state.currentReader = connectResult.reader || reader;
       this.state.isConnected = true;
+      console.log('Connected to reader successfully', this.state.currentReader);
       
+      if (!this.state.currentReader) {
+        throw new Error('Failed to connect: No reader available');
+      }
       return this.state.currentReader;
     } catch (error) {
       this.handleError(error, 'Failed to connect to reader');
@@ -293,7 +333,7 @@ class StripeTerminalService {
       });
 
       const responseJson = await response.json();
-
+      console.log('Server response payment intent:', responseJson);
       const clientSecret = responseJson.data?.client_secret;
       if (!clientSecret) {
         throw new Error('Failed to create payment intent or missing client secret');
@@ -308,67 +348,47 @@ class StripeTerminalService {
   }
 
   /**
-   * Wraps a promise with a timeout. If the promise does not resolve or reject within the specified time,
-   * it will be rejected with a timeout error.
-   * @template T - The type of the promise's result.
-   * @param promise - The promise to wrap with a timeout.
-   * @param timeoutMs - The timeout duration in milliseconds.
-   * @param timeoutError - Optional custom error to throw when the timeout occurs. If not provided,
-   *                       a default error message will be used.
-   * @returns A promise that resolves or rejects based on the original promise and the timeout.
-   */
-  private withTimeout<T>(
-    promise: Promise<T>,
-    timeoutMs: number,
-    timeoutError?: Error
-  ): Promise<T> {
-    let timeoutId: NodeJS.Timeout;
-    const error = timeoutError || new Error('Operation timed out');
-
-    return new Promise<T>((resolve, reject) => {
-      timeoutId = setTimeout(() => reject(error), timeoutMs);
-      promise.then(resolve, reject);
-    }).finally(() => {
-      clearTimeout(timeoutId);
-    });
-  }
-
-  /**
    * Collects the payment using the Stripe Terminal
    * @param clientSecret - The client secret for the payment intent
    * @param timeOutMs - The timeout in milliseconds
    * @returns Promise<any> - The result of the payment collection
    * @throws Error if the payment collection fails
    */
-  async collectTerminalPayment(clientSecret: string, timeOutMs = 25000) {
-    if(!this.terminal) {
-      throw new Error('Terminal is not initialized');
+  async collectPaymentMethod(clientSecret: string, timeoutMs: number = DEFAULT_PAYMENT_TIMEOUT_MS): Promise<PaymentIntent> {
+    if (!this.terminal) {
+      await this.initialize();
     }
 
-    console.log('Starting to collect payment...')
+    // Check terminal connection status
+    const connectionStatus = this.terminal.getConnectionStatus();
+    if (connectionStatus !== 'connected') {
+      console.log('Current connection status:', connectionStatus);
+      throw new Error('Reader not connected. Please ensure reader is connected before collecting payment.');
+    }
 
     try {
-      // wrap the collectPaymentMethod with a timeout helper
-      const result = await this.withTimeout(
-        this.terminal.collectPaymentMethod(clientSecret),
-        timeOutMs,
-        new Error('Payment collection timed out')
-      );
-      console.log('CollectPaymentMethod succeeded, returning payment intent')
-      return (result as CollectResult).paymentIntent; // Type assertion to access paymentIntent
-    } catch (error) {
-      console.warn('Error during payment collection', error)
-      console.log('Attempting to cancel collectPaymentMethod now...')
-      try { // cancel the collectPaymentMethod if it's still running
-        await this.terminal.cancelCollectPaymentMethod();
-        console.log('collectPaymentMethod cancelled successfully')
-      } catch (error) {
-        console.warn('Error cancelling collectPaymentMethod', error)
+      // Setup timeout rejection
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          this.terminal.cancelCollectPaymentMethod().catch(console.error);
+          reject(new Error('Payment collection timed out'));
+        }, timeoutMs);
+      });
+
+      // Start collection
+      const collectPromise = this.terminal.collectPaymentMethod(clientSecret);
+
+      // Race the promises
+      const result = await Promise.race([collectPromise, timeoutPromise]);
+      return result.paymentIntent;
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.includes('timeout')) {
+        error.message = `Customer failed to present payment method within ${timeoutMs}ms`;
       }
       throw error;
     }
   }
-  
+
   /**
    * Processes the payment using the Stripe Terminal
    * @param paymentIntent - The payment intent to process
@@ -388,7 +408,6 @@ class StripeTerminalService {
     return processResult;
   }
 
-
   /**
    * Centralized error handling
    * @param error - The error to handle
@@ -401,8 +420,6 @@ class StripeTerminalService {
     this.state.lastError = errorMessage;
   }  
 }
-
-
 
 // Export at the module level, not inside the class
 export const stripeTerminal = new StripeTerminalService();
