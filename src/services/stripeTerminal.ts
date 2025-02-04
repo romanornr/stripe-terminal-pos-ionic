@@ -10,8 +10,7 @@ interface StripeTerminalObject {
 interface StripeTerminalObject {
   //discoverReaders: (options: DiscoverReaderOptions) => Promise<DiscoverResult>;
   findAvailableReader: () => Promise<Reader>;
-  //connectReader: (reader: Reader) => Promise<ConnectResult>;
-  connectToReader: (reader: Reader) => Promise<ConnectResult>;
+  connectReader: (reader: Reader) => Promise<ConnectResult>;
   collectPaymentMethod: (clientSecret: string) => Promise<CollectResult>;
   processPayment: (paymentIntent: any) => Promise<ProcessPaymentResult>;
 }
@@ -124,18 +123,15 @@ class StripeTerminalService {
   private locationId: string | null = null;
   private reader: any = null;
 
-    /** Reactive ref to indicate if the terminal is connected */
-  public isConnected = ref(false);
-
-  private state =  reactive<TerminalState>({
+  private state = reactive<TerminalState>({
     isConnected: false,
     isLoading: false,
     lastError: null,
     currentReader: null,
   });
 
-  // Expose the state as refs for readony
-  public readonly stateRefs = toRefs(this.state)
+  // Expose the state as refs for readonly access
+  public readonly stateRefs = toRefs(this.state);
 
   /** Base URL for your backend server */
   private baseUrl = 'http://localhost:4242';
