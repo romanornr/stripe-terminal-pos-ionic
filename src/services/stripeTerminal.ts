@@ -53,7 +53,8 @@ interface ConnectResult {
 }
 
 interface CollectResult {
-  paymentIntent: any;
+  error?: { message: string };
+  paymentIntent: PaymentIntent;
 }
 
 interface ProcessPaymentResult {
@@ -347,43 +348,46 @@ class StripeTerminalService {
     }
   }
 
-  /**
-   * Collects the payment using the Stripe Terminal
-   * @param clientSecret - The client secret for the payment intent
-   * @param timeOutMs - The timeout in milliseconds
-   * @returns Promise<any> - The result of the payment collection
-   * @throws Error if the payment collection fails
-   */
+  private withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    timeoutError?: Error
+  ): Promise<T> {
+    let timeoutId: NodeJS.Timeout;
+    const error = timeoutError || new Error('Operation timed out');
+
+    return new Promise<T>((resolve, reject) => {
+      timeoutId = setTimeout(() => reject(error), timeoutMs);
+      promise.then(resolve, reject);
+    }).finally(() => {
+      clearTimeout(timeoutId);
+    });
+  }
+
   async collectPaymentMethod(clientSecret: string, timeoutMs: number = DEFAULT_PAYMENT_TIMEOUT_MS): Promise<PaymentIntent> {
     if (!this.terminal) {
-      await this.initialize();
+      throw new Error('Terminal is not initialized');
     }
 
-    // Check terminal connection status
-    const connectionStatus = this.terminal.getConnectionStatus();
-    if (connectionStatus !== 'connected') {
-      console.log('Current connection status:', connectionStatus);
-      throw new Error('Reader not connected. Please ensure reader is connected before collecting payment.');
-    }
+    console.log('Starting to collect payment...');
 
     try {
-      // Setup timeout rejection
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          this.terminal.cancelCollectPaymentMethod().catch(console.error);
-          reject(new Error('Payment collection timed out'));
-        }, timeoutMs);
-      });
+      const result = await this.withTimeout(
+        this.terminal.collectPaymentMethod(clientSecret),
+        timeoutMs,
+        new Error('Payment collection timed out')
+      ) as CollectResult;
 
-      // Start collection
-      const collectPromise = this.terminal.collectPaymentMethod(clientSecret);
-
-      // Race the promises
-      const result = await Promise.race([collectPromise, timeoutPromise]);
+      console.log('CollectPaymentMethod succeeded, returning payment intent');
       return result.paymentIntent;
-    } catch (error: unknown) {
-      if (error instanceof Error && error.message.includes('timeout')) {
-        error.message = `Customer failed to present payment method within ${timeoutMs}ms`;
+    } catch (error) {
+      console.warn('Error during payment collection', error);
+      console.log('Attempting to cancel collectPaymentMethod now...');
+      try {
+        await this.terminal.cancelCollectPaymentMethod();
+        console.log('collectPaymentMethod cancelled successfully');
+      } catch (cancelError) {
+        console.warn('Error cancelling collectPaymentMethod', cancelError);
       }
       throw error;
     }
