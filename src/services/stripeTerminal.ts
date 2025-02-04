@@ -241,6 +241,12 @@ class StripeTerminalService {
     }
   }
 
+  /**
+   * Connects to a reader
+   * @param reader - The reader to connect to
+   * @returns Promise<Reader> - The connected reader
+   * @throws Error if the reader connection fails
+   */
   async connectToReader(reader: Reader): Promise<Reader> {
     if (!this.terminal) {
       await this.initialize();
@@ -327,7 +333,7 @@ class StripeTerminalService {
       const amountInCents = Math.round(amount * 100);
       console.log('Creating payment intent for amount:', amountInCents);
 
-      const response = await fetch(`${this.baseUrl}/create-payment-intent`, {
+      const response = await fetch(CREATE_PAYMENT_INTENT_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({amount: amountInCents, currency: 'eur'}),
