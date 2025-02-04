@@ -348,6 +348,13 @@ class StripeTerminalService {
     }
   }
 
+  /**
+   * Helper function to handle timeouts
+   * @param promise - The promise to handle
+   * @param timeoutMs - The timeout in milliseconds
+   * @param timeoutError - The error to throw if the operation times out
+   * @returns Promise<T> - The result of the promise
+   */
   private withTimeout<T>(
     promise: Promise<T>,
     timeoutMs: number,
@@ -364,6 +371,13 @@ class StripeTerminalService {
     });
   }
 
+  /**
+   * Collects the payment method using the Stripe Terminal
+   * @param clientSecret - The client secret for the payment intent
+   * @param timeoutMs - The timeout in milliseconds
+   * @returns Promise<PaymentIntent> - The payment intent
+   * @throws Error if the payment collection fails
+   */
   async collectPaymentMethod(clientSecret: string, timeoutMs: number = DEFAULT_PAYMENT_TIMEOUT_MS): Promise<PaymentIntent> {
     if (!this.terminal) {
       throw new Error('Terminal is not initialized');
