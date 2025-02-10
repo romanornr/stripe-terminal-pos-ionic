@@ -1,23 +1,13 @@
 import { json } from 'stream/consumers';
 import { ref, reactive, toRefs } from 'vue';
+import { Logger, ConsoleLogger } from '../logger/Logger';
 
 // -- INTERFACES --
-
-interface StripeTerminalObject {
-  create: (options: StripeTerminalOptions) => StripeTerminalObject
-}
-
-interface StripeTerminalObject {
-  //discoverReaders: (options: DiscoverReaderOptions) => Promise<DiscoverResult>;
-  findAvailableReader: () => Promise<Reader>;
-  connectReader: (reader: Reader) => Promise<ConnectResult>;
-  collectPaymentMethod: (clientSecret: string) => Promise<CollectResult>;
-  processPayment: (paymentIntent: any) => Promise<ProcessPaymentResult>;
-}
 
 interface StripeTerminalOptions {
   onFetchConnectionToken: () => Promise<string>;
   onUnexpectedReaderDisconnect: () => void;
+  onReaderDisconnected: () => void;
 }
 
 interface Reader {
@@ -90,10 +80,9 @@ const API_BASE_URL = 'http://localhost:4242';
 const CONNECTION_TOKEN_ENDPOINT = `${API_BASE_URL}/connection-token`;
 const GET_LOCATION_ID_ENDPOINT = `${API_BASE_URL}/get-location-id`;
 const CREATE_PAYMENT_INTENT_ENDPOINT = `${API_BASE_URL}/create-payment-intent`;
-const COLLECT_PAYMENT_METHOD_ENDPOINT = `${API_BASE_URL}/collect-payment-method`;
-const PROCESS_PAYMENT_ENDPOINT = `${API_BASE_URL}/process-payment`;
-
 const DEFAULT_PAYMENT_TIMEOUT_MS = 25000;
+
+const logger: Logger = new ConsoleLogger('debug')
 
 // We have to declare stripeTerminal as "any" because it's a global from the <script> tag
 // This should be resolved in a future version of the Stripe Terminal SDK
@@ -121,7 +110,6 @@ interface TerminalState {
 class StripeTerminalService {
   private terminal: any = null;
   private locationId: string | null = null;
-  private reader: any = null;
 
   private state = reactive<TerminalState>({
     isConnected: false,
@@ -152,6 +140,8 @@ class StripeTerminalService {
 
     this.state.isLoading = true;
     this.state.lastError = null;
+
+    logger.info('ConsoleLogger initialized successfully')
 
     try {
       this.terminal = StripeTerminal.create({
