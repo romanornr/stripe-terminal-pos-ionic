@@ -1,6 +1,7 @@
 import { json } from 'stream/consumers';
 import { ref, reactive, toRefs } from 'vue';
 import { Logger, ConsoleLogger } from '../logger/Logger';
+import { DEFAULT_CONFIG } from '@/config/config';
 
 // -- INTERFACES --
 
@@ -76,11 +77,11 @@ interface PaymentIntent {
 }
 
 // Constants for API endpoints
-const API_BASE_URL = 'http://localhost:4242';
-const CONNECTION_TOKEN_ENDPOINT = `${API_BASE_URL}/connection-token`;
-const GET_LOCATION_ID_ENDPOINT = `${API_BASE_URL}/get-location-id`;
-const CREATE_PAYMENT_INTENT_ENDPOINT = `${API_BASE_URL}/create-payment-intent`;
-const DEFAULT_PAYMENT_TIMEOUT_MS = 25000;
+const API_BASE_URL =  DEFAULT_CONFIG.baseUrl //'http://localhost:4242';
+const CONNECTION_TOKEN_ENDPOINT = `${API_BASE_URL}${DEFAULT_CONFIG.endpoints.connectionToken}`;
+const GET_LOCATION_ID_ENDPOINT = `${API_BASE_URL}${DEFAULT_CONFIG.endpoints.locationId}`;
+const CREATE_PAYMENT_INTENT_ENDPOINT = `${API_BASE_URL}${DEFAULT_CONFIG.endpoints.paymentIntent}`;
+const DEFAULT_PAYMENT_TIMEOUT_MS = DEFAULT_CONFIG.timeoutMs;
 
 const logger: Logger = new ConsoleLogger('debug')
 
@@ -122,9 +123,9 @@ class StripeTerminalService {
   public readonly stateRefs = toRefs(this.state);
 
   /** Base URL for your backend server */
-  private baseUrl = 'http://localhost:4242';
+  private baseUrl = API_BASE_URL //'http://localhost:4242';
 
-  constructor(baseUrl = 'http://localhost:4242') {
+  constructor(baseUrl = API_BASE_URL) {
     this.baseUrl = baseUrl;
   }
 
