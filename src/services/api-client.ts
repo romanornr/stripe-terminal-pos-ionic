@@ -3,7 +3,8 @@
 import axios, { AxiosInstance } from 'axios';
 import { DEFAULT_CONFIG, TerminalConfig } from '@/config/config';
 import type { Logger } from '@/logger/Logger';
-import type { PaymentIntent, PaymentIntentResponse } from '@/types';
+import type { PaymentIntent, Result } from '@/types/terminalTypes';
+import { TerminalError } from '@/types/terminalTypes';
 
 export class ApiClient {
   private readonly client: AxiosInstance;
@@ -24,19 +25,23 @@ export class ApiClient {
    * @returns A promise that resolves to the connection token.
    * @throws An error if the response structure is invalid.
    */
-  async getConnectionToken(): Promise<string> {
+  async getConnectionToken(): Promise<Result<string>> {
     try {
       this.logger.debug('Fetching connection token from', this.config.baseUrl);
-      const { data } = await this.client.post<{ data?: string }>(
+      const { data } = await this.client.post<{ data: { secret: string }, error: null | string }>(
         this.config.endpoints.connectionToken
       );
 
       this.logger.debug('Connection token:', data);
-      if (!data?.data) throw new Error('Invalid response structure');
-      return data.data;
+      if (!data?.data?.secret) {
+        throw new TerminalError('CONNECTION_TOKEN_FAILED', 'Invalid response structure');
+      }
+      return { success: true, data: data.data.secret };
     } catch (error) {
-      this.logger.error('Error fetching connection token:', error);
-      throw error;
+      return {
+        success: false,
+        error: error instanceof TerminalError ? error : new TerminalError('CONNECTION_TOKEN_FAILED', 'An unknown error occurred')
+      }
     }
   }
 
