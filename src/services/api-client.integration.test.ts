@@ -1,7 +1,7 @@
 import { ApiClient } from './api-client';
 import { TerminalConfig } from '@/config/config';
 import { Logger } from '@/logger/Logger';
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, fail } from 'vitest';
 import { DEFAULT_CONFIG } from '@/config/config';
 
 describe('ApiClient Integration Tests', () => {
@@ -33,32 +33,34 @@ describe('ApiClient Integration Tests', () => {
   });
 
   it('should fetch a real connection token from server', async () => {
-    const token = await apiClient.getConnectionToken();
+    const result = await apiClient.getConnectionToken();
     
-    console.log('Raw token response:', token); // Debug log
+    // Log the response for debugging
+    console.log('Raw response:', result);
     
-    expect(token).toBeDefined();
-    // Check if token is an object with a secret property
-    if (typeof token === 'object' && token !== null) {
-      const tokenObj = token as { secret: string };
-      expect(tokenObj.secret).toBeDefined();
-      expect(typeof tokenObj.secret).toBe('string');
-      expect(tokenObj.secret.length).toBeGreaterThan(0);
-    } else {
-      expect(typeof token).toBe('string');
-      expect(token.length).toBeGreaterThan(0);
+    if (!result.success) {
+      console.error('Error code:', result.error.code);
+      console.error('Error message:', result.error.message);
+      console.error('Original error:', result.error.originalError);
+      throw new Error(`Failed to get connection token: ${result.error.message}`);
     }
-  }, 10000);  // 10s timeout for real HTTP call
+    
+    expect(result.success).toBe(true);
+    expect(result.data).toBeDefined();
+    expect(typeof result.data).toBe('string');
+  }, 10000);
 
   it('should handle server errors gracefully', async () => {
-    // Temporarily break the URL to test error handling
     const badClient = new ApiClient({
       ...apiClient['config'],
       baseUrl: 'http://localhost:4242/nonexistent'
     }, apiClient['logger']);
 
-    await expect(badClient.getConnectionToken())
-      .rejects
-      .toThrow();
+    const result = await badClient.getConnectionToken();
+    expect(result.success).toBe(false);
+    if (!result.success) {  // Type guard
+      expect(result.error).toBeDefined();
+      expect(result.error.code).toBe('CONNECTION_TOKEN_FAILED');
+    }
   });
 }); 

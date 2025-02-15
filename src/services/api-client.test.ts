@@ -45,28 +45,46 @@ describe('ApiClient', () => {
   describe('getConnectionToken', () => {
     it('should successfully fetch and return a valid connection token', async () => {
       const mockSecret = 'mock_secret_token';
-      mockPost.mockResolvedValueOnce({ data: { data: mockSecret } });
+      mockPost.mockResolvedValueOnce({ 
+        data: { 
+          data: { secret: mockSecret },
+          error: null
+        } 
+      });
 
       const result = await apiClient.getConnectionToken();
 
-      expect(result).toBe(mockSecret);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toBe(mockSecret);
+      }
       expect(mockPost).toHaveBeenCalledWith(mockConfig.endpoints.connectionToken);
       expect(mockLogger.debug).toHaveBeenCalledWith('Fetching connection token from', mockConfig.baseUrl);
     });
 
-    it('should throw error when response structure is invalid', async () => {
+    it('should return error when response structure is invalid', async () => {
       mockPost.mockResolvedValueOnce({ data: {} });
 
-      await expect(apiClient.getConnectionToken()).rejects.toThrow('Invalid response structure');
-      expect(mockLogger.error).toHaveBeenCalled();
+      const result = await apiClient.getConnectionToken();
+      
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBeDefined();
+        expect(result.error.code).toBe('CONNECTION_TOKEN_FAILED');
+      }
     });
 
-    it('should throw error when API call fails', async () => {
+    it('should return error when API call fails', async () => {
       const mockError = new Error('Network error');
       mockPost.mockRejectedValueOnce(mockError);
 
-      await expect(apiClient.getConnectionToken()).rejects.toThrow('Network error');
-      expect(mockLogger.error).toHaveBeenCalledWith('Error fetching connection token:', mockError);
+      const result = await apiClient.getConnectionToken();
+      
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBeDefined();
+        expect(result.error.code).toBe('CONNECTION_TOKEN_FAILED');
+      }
     });
   });
 });
