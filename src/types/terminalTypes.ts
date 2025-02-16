@@ -1,6 +1,5 @@
 // src/types/terminalTypes.ts
 
-
 /**
  * Generic result type for terminal operations
  * Use this for any operation represents a successful or failed operation
@@ -27,7 +26,8 @@ export type ErrorCode =
   | 'PAYMENT_COLLECTION_FAILED'
   | 'PAYMENT_PROCESSING_FAILED'
   | 'OPERATION_TIMEOUT'
-  | 'CONFIG_INVALID';
+  | 'CONFIG_INVALID'
+  | 'READER_DISCONNECTION_FAILED';
 
 /**
  * TerminalError extends the built-in Error class to provide a custom error type for terminal operations
@@ -73,17 +73,6 @@ export interface PaymentIntent {
  */
 export interface Reader {
   id: string;
-  object: string;
-  action: any;
-  base_url: string;
-  device_sw_version: string;
-  device_type: string;
-  ip_address: string;
-  label: string;
-  last_seen_at: number;
-  livemode: boolean;
-  location: string;
-  metadata: Record<string, any>;
-  serial_number: string;
+  name: string;
   status: string;
 }
