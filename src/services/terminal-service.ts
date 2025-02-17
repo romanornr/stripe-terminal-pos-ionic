@@ -93,6 +93,9 @@ export class TerminalService {
           status: 'online',
         }
       ]
+      // **Update the state to reflect the available readers**
+      this.state.availableReaders = readers;
+      console.log('Terminal service: Available readers:', this.state.availableReaders);
       return { success: true, data: readers };
     } catch (error: unknown) {
       const terminalError = new TerminalError('NO_READERS_FOUND', error instanceof Error ? error.message : String(error));
@@ -120,6 +123,33 @@ export class TerminalService {
     } finally {
       this.state.isLoading = false;
     }
+  }
+
+  async connectAndInitializeReader(): Promise<Reader> {
+    // Ensure terminal is initialized first
+    if (!this.state.isInitialized) {
+      await this.initialize();
+    }
+
+    // Check if already connected and disconnect first
+    if (this.state.isConnected) {
+      await this.disconnect();
+    }
+
+    // Discover readers
+    const discoverResult = await this.discoverReaders();
+    if (!discoverResult.success || discoverResult.data.length === 0) {
+      throw new TerminalError('NO_READERS_FOUND', 'No available readers found');
+    }
+
+    // Auto-connect to the first reader available
+    const readerToConnect = discoverResult.data[0];
+    const connectResult = await this.connectReader(readerToConnect);
+    if (!connectResult.success) {
+      throw new TerminalError('READER_CONNECTION_FAILED', connectResult.error.message);
+    }
+
+    return connectResult.data;
   }
 
   async disconnect(): Promise<void> {
