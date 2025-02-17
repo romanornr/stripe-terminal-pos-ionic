@@ -78,7 +78,18 @@ export class TerminalService {
       const readers: Reader[] = [
         {
           id: 'reader1',
-          name: 'Reader 1',
+          object: 'reader',
+          action: null,
+          base_url: 'https://example.com',
+          device_sw_version: '1.0.0',
+          device_type: 'chipper2x',
+          ip_address: '192.168.1.1',
+          label: 'Reader 1',
+          last_seen_at: 1713331200,
+          livemode: true,
+          location: '123 Main St',
+          metadata: {},
+          serial_number: '1234567890',
           status: 'online',
         }
       ]

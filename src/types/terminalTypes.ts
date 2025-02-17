@@ -73,6 +73,17 @@ export interface PaymentIntent {
  */
 export interface Reader {
   id: string;
-  name: string;
+  object: string;
+  action: any;
+  base_url: string;
+  device_sw_version: string;
+  device_type: string;
+  ip_address: string;
+  label: string;
+  last_seen_at: number;
+  livemode: boolean;
+  location: string;
+  metadata: Record<string, any>;
+  serial_number: string;
   status: string;
 }
