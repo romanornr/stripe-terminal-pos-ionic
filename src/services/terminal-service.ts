@@ -72,31 +72,24 @@ export class TerminalService {
   async discoverReaders(): Promise<{ success: true; data: Reader[] } | { success: false; error: TerminalError }> {
     this.state.isLoading = true;
     try {
-      this.logger.info('Discovering readers...');
-      //const locationId = await this.getLocationId();
-      // for now, simulate discovery readers
-      const readers: Reader[] = [
-        {
-          id: 'reader1',
-          object: 'reader',
-          action: null,
-          base_url: 'https://example.com',
-          device_sw_version: '1.0.0',
-          device_type: 'chipper2x',
-          ip_address: '192.168.1.1',
-          label: 'Reader 1',
-          last_seen_at: 1713331200,
-          livemode: true,
-          location: '123 Main St',
-          metadata: {},
-          serial_number: '1234567890',
-          status: 'online',
-        }
-      ]
-      // **Update the state to reflect the available readers**
+      this.logger.info('Discovering readers using terminal instance...');
+
+      // Attempt to get the location ID; if it fails, it will be caught below
+      const locationId = await this.apiClient.getLocationId();
+      if (!locationId.success) {
+        throw new TerminalError('LOCATION_ID_FETCH_FAILED', locationId.error.message);
+      }
+
+      // Discover readers
+      const discoverResult = await this.terminal.discoverReaders({ location: locationId.data });
+      if (discoverResult.error) {
+        throw new TerminalError('NO_READERS_FOUND', discoverResult.error.message);
+      }
+
+      const readers: Reader[] = discoverResult.discoveredReaders || [];
+      this.logger.info('Discovered readers:', readers);
       this.state.availableReaders = readers;
-      console.log('Terminal service: Available readers:', this.state.availableReaders);
-      return { success: true, data: readers };
+      return { success: true, data: this.state.availableReaders };
     } catch (error: unknown) {
       const terminalError = new TerminalError('NO_READERS_FOUND', error instanceof Error ? error.message : String(error));
       this.state.lastError = terminalError.message;
@@ -110,10 +103,8 @@ export class TerminalService {
     this.state.isLoading = true;
     try {
       this.logger.info('Connecting to reader...', { readerId: reader.id });
-      // simulate connection delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      // mark reader as connected
-      this.state.currentReader = reader;
+      await new Promise(resolve => setTimeout(resolve, 500)); // simulate connection delay
+      this.state.currentReader = reader; // mark reader as connected
       this.state.isConnected = true;
       return { success: true, data: reader };
     } catch (error: any) {
@@ -156,10 +147,8 @@ export class TerminalService {
     this.state.isLoading = true; 
     try {
       this.logger.info('Disconnecting from reader...');
-      // simulate disconnection delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      // reset current reader
-      this.state.currentReader = null;
+      await new Promise(resolve => setTimeout(resolve, 500)); // simulate disconnection delay
+      this.state.currentReader = null; // reset current reader
     } catch (error: any) {
       const terminalError = new TerminalError('READER_DISCONNECTION_FAILED', error instanceof Error ? error.message : String(error));
       this.state.lastError = terminalError.message;
