@@ -27,7 +27,8 @@ export type ErrorCode =
   | 'PAYMENT_PROCESSING_FAILED'
   | 'OPERATION_TIMEOUT'
   | 'CONFIG_INVALID'
-  | 'READER_DISCONNECTION_FAILED';
+  | 'READER_DISCONNECTION_FAILED'
+  | 'LOCATION_ID_FETCH_FAILED';
 
 /**
  * TerminalError extends the built-in Error class to provide a custom error type for terminal operations
