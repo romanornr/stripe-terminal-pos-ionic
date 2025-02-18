@@ -15,6 +15,10 @@ export type DiscoverResult = Result<Reader[]>;
 export type ConnectResult = Result<Reader>;
 export type PaymentResult = Result<PaymentIntent>;
 
+export type collectResult =
+  | { success: true, paymentIntent: PaymentIntent }
+  | { sucess: false, error: TerminalError }
+
 /**
  * Error codes for terminal-related operations
  */
