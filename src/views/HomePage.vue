@@ -45,9 +45,17 @@
         
         <ion-content class="ion-padding">
           <ion-button @click="handleConnect">Discover & Connect</ion-button>
-          <p v-if="connected">Reader connected successfully!</p>
+          <p v-if="isConnected">Reader connected successfully!</p>
           <p v-else>Not connected</p>
         </ion-content>
+
+        <ion-card>
+          <ion-card-content>
+            <ion-text>
+              <h2> {{ isConnected }} {{ currentReader }} {{ isLoading }} {{ isInitialized }} {{ availableReaders }} {{ error }}</h2>
+            </ion-text>
+          </ion-card-content>
+        </ion-card>
 
         <!-- Terminal status -->
          <div class="terminal-status ion-padding-horizontal">
@@ -56,7 +64,6 @@
             <ion-label>{{  terminalStatus.text }}</ion-label>
           </ion-chip>
          </div>
-
   </ion-content>
 </ion-page>
 
@@ -66,9 +73,26 @@
 import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonGrid, IonRow, IonCol, IonButton, IonInput, IonCard, IonCardContent, IonText, IonItem } from '@ionic/vue';
 import { readonly, computed, ref } from 'vue';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
-import { stripeTerminal } from '@/services/stripeTerminal';
+//import { stripeTerminal } from '@/services/stripeTerminal';
 import { checkmarkCircle, disc, syncCircle, terminal, alertCircle } from 'ionicons/icons';
 import { toastController } from '@ionic/vue';
+//import { terminalService } from '@/services/terminal-service';
+import { onMounted } from 'vue';
+import { useTerminal } from '@/composables/useTerminal';
+
+const { isInitialized, isLoading, error, currentReader, availableReaders, isReady, initialize, discoverReaders, connectReader, isConnected, disconnect, autoConnect, terminalService } = useTerminal();
+
+// optionally initialize on component mount
+onMounted(async () => {
+  try {
+    await autoConnect();
+    console.log('Terminal initialized');
+  } catch (error) {
+    console.error('Error initializing terminal:', error);
+  } finally {
+    console.log('Terminal initialization complete');
+  }
+});
 
 const isProcessing = ref(false);
 const errorMessage = ref('');
@@ -129,63 +153,130 @@ amount.value = amount.value === '0' ? key : amount.value + key;
 
 const handlePayment = async () => {
   isProcessing.value = true;
-  errorMessage.value = '';
 
   try {
-    await handleConnect();
-    
-    console.log('Starting payment with amount:', amount.value);
-    const clientSecret = await stripeTerminal.createPaymentIntent(parseFloat(amount.value));
-    
-    // Change from collectTerminalPayment to collectPaymentMethod
-    const collectResult = await stripeTerminal.collectPaymentMethod(clientSecret);
-    
-    amount.value = '0';
-    
-    console.log('Collect result:', collectResult);
-    const processResult = await stripeTerminal.processTerminalPayment(collectResult);
-    
+    // Connect to terminal
+    try {
+      await autoConnect();
+      console.log('Terminal is connected. Current reader:', currentReader.value);
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to connect to terminal');
+    }
+
+    // Create payment intent
+    const createPaymentIntentResult = await terminalService.createPaymentIntent(parseFloat(amount.value));
+    if (!createPaymentIntentResult.success) {
+      throw new Error(createPaymentIntentResult.error.message);
+    }
+
+    // Collect payment method
+    const collectResult = await terminalService.collectPaymentMethod(createPaymentIntentResult.data.client_secret);
+    if (!collectResult.success) {
+      throw new Error(collectResult.error.message);
+    }
+
+    // Process payment
+    const processResult = await terminalService.processPayment(collectResult.data);
+    if (!processResult.success) {
+      console.log('Payment processing failed:', processResult.error);
+      throw new Error(processResult.error.message);
+    }
+
     // Show success toast
     const toast = await toastController.create({
       message: 'Payment successful',
-      duration: 2000,
+      duration: 5000,
       position: 'top',
       color: 'success',
       icon: 'checkmark-circle'
     });
     await toast.present();
-
-    terminalStatus.value = terminalStates.ready;
-
-  } catch (error: any) {
+  } catch (error) {
     console.error('Payment error:', error);
-    errorMessage.value = error.message || 'Payment failed';
+    
+    const errorToast = await toastController.create({
+      message: error instanceof Error ? error.message : 'Payment failed',
+      duration: 5000,
+      position: 'top',
+      color: 'danger',
+      icon: 'alert-circle'
+    });
+    await errorToast.present();
   } finally {
     isProcessing.value = false;
   }
 };
 
+  // try {
+  //   await handleConnect();
+    
+  //   console.log('Starting payment with amount:', amount.value);
+  //   const clientSecret = await stripeTerminal.createPaymentIntent(parseFloat(amount.value));
+    
+  //   // Change from collectTerminalPayment to collectPaymentMethod
+  //   const collectResult = await stripeTerminal.collectPaymentMethod(clientSecret);
+    
+  //   amount.value = '0';
+    
+  //   console.log('Collect result:', collectResult);
+  //   const processResult = await stripeTerminal.processTerminalPayment(collectResult);
+    
+  //   // Show success toast
+  //   const toast = await toastController.create({
+  //     message: 'Payment successful',
+  //     duration: 2000,
+  //     position: 'top',
+  //     color: 'success',
+  //     icon: 'checkmark-circle'
+  //   });
+  //   await toast.present();
+
+  //   terminalStatus.value = terminalStates.ready;
+
+  // } catch (error: any) {
+  //   console.error('Payment error:', error);
+  //   errorMessage.value = error.message || 'Payment failed';
+  // } finally {
+  //   isProcessing.value = false;
+  // }
+// };
+
 async function handleConnect() {
   try {
-    const reader = await stripeTerminal.connectAndInitializeReader();
-    console.log('Reader connected successfully at the frontend', reader);
-    connected.value = true;
-
-    // Show success toast
-    const toast = await toastController.create({
-      message: 'Reader connected successfully',
-      duration: 2000,
-      position: 'top',
-      color: 'success',
-      icon: 'checkmark-circle'
-    });
-    await toast.present();
-
-    terminalStatus.value = terminalStates.ready;
-
-  } catch (error) {
-    console.error('Error connecting to reader', error);
+    await terminalService.initialize();
+    const disoveredReaders = await terminalService.discoverReaders();
+    const connectedReader = await terminalService.connectReader(disoveredReaders.data[0]);
+    const connected = connectedReader.success;
+    if (disoveredReaders.success) {
+      console.log('Disovered readers:', disoveredReaders.data);
+    } else {
+      console.error('Error discovering readers:', disoveredReaders.error);
+    }
+  } catch (error: any) {
+    console.error('Error initializing terminal service:', error);
+    errorMessage.value = error.message || 'Failed to initialize terminal service';
   }
+
+  // try {
+  //   const reader = await stripeTerminal.connectAndInitializeReader();
+  //   console.log('Reader connected successfully at the frontend', reader);
+  //   connected.value = true;
+
+  //   // Show success toast
+  //   const toast = await toastController.create({
+  //     message: 'Reader connected successfully',
+  //     duration: 2000,
+  //     position: 'top',
+  //     color: 'success',
+  //     icon: 'checkmark-circle'
+  //   });
+  //   await toast.present();
+
+  //   terminalStatus.value = terminalStates.ready;
+
+  // } catch (error) {
+  //   console.error('Error connecting to reader', error);
+  // }
 }
 
 

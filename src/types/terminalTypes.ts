@@ -14,10 +14,11 @@ export type Result<T> =
 export type DiscoverResult = Result<Reader[]>;
 export type ConnectResult = Result<Reader>;
 export type PaymentResult = Result<PaymentIntent>;
+export type CollectResult = Result<PaymentIntent>;
 
-export type collectResult =
+export type ProcessPaymentResult<T> =
   | { success: true, paymentIntent: PaymentIntent }
-  | { sucess: false, error: TerminalError }
+  | { success: false, error: TerminalError };
 
 /**
  * Error codes for terminal-related operations
@@ -92,3 +93,8 @@ export interface Reader {
   serial_number: string;
   status: string;
 }
+
+// interface ProcessPaymentResult {
+//   error?: { message: string };
+//   paymentIntent?: PaymentIntent;
+// }

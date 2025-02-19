@@ -16,6 +16,7 @@ export function useTerminal() {
   const error = ref<TerminalError | null>(null);
   const currentReader = ref<Reader | null>(null);
   const availableReaders = ref<Reader[]>([]);
+  const isConnected = ref(false);
 
   // update these refs based on TerminalService state
   // optionally, we can use watchers or computed properties for more reactive updates
@@ -23,6 +24,7 @@ export function useTerminal() {
     const state = terminalService.terminalState;
     isInitialized.value = state.isInitialized;
     isLoading.value = state.isLoading;
+    isConnected.value = state.isConnected;
     // assuming state.lastError is a string, might want to wrap it as a TerminalError
     error.value = state.lastError ? new TerminalError('CONFIG_INVALID', state.lastError) : null;
     currentReader.value = state.currentReader;
@@ -87,8 +89,14 @@ export function useTerminal() {
 
   async function autoConnect() {
     try { 
+      isLoading.value = true;
       const reader = await terminalService.connectAndInitializeReader();
+      // Wait a brief moment to ensure state propagation
+      await new Promise(resolve => setTimeout(resolve, 200));
       updateLocalState();
+      if (!isConnected) {
+        throw new TerminalError('READER_CONNECTION_FAILED', 'Reader connection not fully established');
+      }
       console.info('Auto-connected to reader:', reader.serial_number);
     } catch (err) {
       error.value = err as TerminalError;
@@ -105,6 +113,7 @@ export function useTerminal() {
     // Expose state
     isInitialized,
     isLoading,
+    isConnected,
     error,
     currentReader,
     availableReaders,
