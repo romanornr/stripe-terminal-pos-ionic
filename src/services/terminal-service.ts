@@ -28,7 +28,7 @@ export class TerminalService {
   private logger: Logger;
   private config: TerminalConfig;
   private apiClient: ApiClient;
-  private terminal: any = null;
+  private _terminal: any = null;
 
   constructor(config: TerminalConfig = DEFAULT_CONFIG) {
     this.config = config;
@@ -46,7 +46,7 @@ export class TerminalService {
     try {
       this.logger.info('Initializing terminal service...');
       // Create the stripe Terminal instance using the ApiClient for fetching the connection token
-      this.terminal = StripeTerminal.create({
+      this._terminal = StripeTerminal.create({
         onFetchConnectionToken: async () => {
           const result = await this.apiClient.getConnectionToken();
           if (result.success) {
@@ -86,7 +86,7 @@ export class TerminalService {
       }
 
       // Discover readers
-      const discoverResult = await this.terminal.discoverReaders({ location: locationId.data });
+      const discoverResult = await this._terminal.discoverReaders({ location: locationId.data });
       if (discoverResult.error) {
         throw new TerminalError('NO_READERS_FOUND', discoverResult.error.message);
       }
@@ -109,7 +109,7 @@ export class TerminalService {
     try {
       this.logger.info('Connecting to reader via SDK...', { readerId: reader.id });
       //await new Promise(resolve => setTimeout(resolve, 500)); // simulate connection delay
-      const connectResult = await this.terminal.connectReader(reader)
+      const connectResult = await this._terminal.connectReader(reader)
       if (connectResult.error) {
         throw new TerminalError('READER_CONNECTION_FAILED', connectResult.error)
       }
@@ -168,7 +168,7 @@ export class TerminalService {
     try {
       this.logger.info('Disconnecting from reader...');
       await new Promise(resolve => setTimeout(resolve, 500)); // simulate disconnection delay
-      await this.terminal.disconnectReader();
+      await this._terminal.disconnectReader();
       this.state.currentReader = null; // reset current reader
     } catch (error: any) {
       const terminalError = new TerminalError('READER_DISCONNECTION_FAILED', error instanceof Error ? error.message : String(error));
@@ -205,14 +205,14 @@ export class TerminalService {
   }
 
   async collectPaymentMethod(clientSecret: string, timeoutMs: number = DEFAULT_PAYMENT_TIMEOUT_MS): Promise<CollectResult> {
-    if (!this.terminal) {
+    if (!this._terminal) {
       throw new TerminalError('PAYMENT_COLLECTION_FAILED', 'Terminal is not initialized');
     }
 
     try { 
       this.logger.info('Starting payment collection with client secret:', clientSecret);
       const collectResult = await this.withTimeout(
-        this.terminal.collectPaymentMethod(clientSecret),
+        this._terminal.collectPaymentMethod(clientSecret),
         timeoutMs,
         new Error('Payment collection timed out')
       ) as CollectResult
@@ -231,7 +231,7 @@ export class TerminalService {
       // TODO: Implement a global error handler
       // TODO: Add a timeout to the payment collection
       try {
-        await this.terminal.cancelCollectPaymentMethod();
+        await this._terminal.cancelCollectPaymentMethod();
         this.logger.info('collectPaymentMethod cancelled successfully');
       } catch (cancelError) {
         this.logger.warn('Error cancelling payment collection', cancelError);
@@ -241,7 +241,7 @@ export class TerminalService {
   }
 
   // async collectPaymentMethod(clientSecret: string, timeoutMs: number = DEFAULT_PAYMENT_TIMEOUT_MS): Promise<CollectResult> {
-  //   if(!this.terminal) {
+  //   if(!this._terminal) {
   //     throw new Error('Terminal is not initialized');
   //   }
 
@@ -250,7 +250,7 @@ export class TerminalService {
   //     this.logger.info('Collecting payment method...')
   //     collectionStarted = true;
   //     const result = await this.withTimeout(
-  //       this.terminal.collectPaymentMethod(clientSecret),
+  //       this._terminal.collectPaymentMethod(clientSecret),
   //       timeoutMs,
   //       new Error('Payment collection timed out')
   //     ) as CollectResult;
@@ -262,7 +262,7 @@ export class TerminalService {
   //     this.logger.warn('Error during payment collection', error);
   //     if (collectionStarted) {
   //       try {
-  //         await this.terminal.cancelCollectPaymentMethod();
+  //         await this._terminal.cancelCollectPaymentMethod();
   //       } catch (cancelError) {
   //         this.logger.warn('Error cancelling payment collection', cancelError);
   //       }
@@ -275,7 +275,7 @@ export class TerminalService {
     this.state.isLoading = true;
     try {
       this.logger.info('Processing payment...', { paymentIntentId: paymentIntent.id });
-      const result = await this.terminal.processPayment(paymentIntent);
+      const result = await this._terminal.processPayment(paymentIntent);
       if (result.error) {
         throw new TerminalError('PAYMENT_PROCESSING_FAILED', result.error.message);
       }
@@ -315,6 +315,11 @@ private withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutError?: Er
   }).finally(() => {
     clearTimeout(timeoutId);
   });
+}
+
+// Make terminal accessible (but readonly)
+public get terminal() {
+  return this._terminal; // Return the private instance
 }
 }
 

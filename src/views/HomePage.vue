@@ -159,15 +159,39 @@ const handlePayment = async () => {
   let countdownModal: HTMLIonModalElement | null = null;
   let resultModal: HTMLIonModalElement | null = null;
 
-
-  try {
-    // Connect to terminal
+  // Validate terminal connection first
+  if (!isConnected.value) {
     try {
       await autoConnect();
-      console.log('Terminal is connected. Current reader:', currentReader.value);
+      // wait for connection to stabilize
+      await new Promise(resolve => setTimeout(resolve, 500));
+      if (!isConnected.value) {
+        throw new Error('Failed to connect to terminal');
+      }
     } catch (error) {
-      throw new Error(error instanceof Error ? error.message : 'Failed to connect to terminal');
+      //throw new Error(error instanceof Error ? error.message : 'Failed to connect to terminal');
+      const errorMsg = error instanceof Error ? error.message : 'Terminal connection failed';
+      const toast = await toastController.create({
+        message: errorMsg,
+        duration: 3000,
+        position: 'top',
+        color: 'danger'
+      });
+      await toast.present();
+      isProcessing.value = false;
+      return;
     }
+  }
+
+
+  try {
+    // // Connect to terminal
+    // try {
+    //   await autoConnect();
+    //   console.log('Terminal is connected. Current reader:', currentReader.value);
+    // } catch (error) {
+    //   throw new Error(error instanceof Error ? error.message : 'Failed to connect to terminal');
+    // }
 
     // Create payment intent
     const createPaymentIntentResult = await terminalService.createPaymentIntent(parseFloat(amount.value));
