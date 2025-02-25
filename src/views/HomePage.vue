@@ -81,7 +81,7 @@ import { onMounted } from 'vue';
 import { useTerminal } from '@/composables/useTerminal';
 import { DEFAULT_CONFIG } from '@/config/config';
 import PaymentCountdown from '@/components/PaymentCountdown.vue';
-
+import PaymentResultContent from '@/components/PaymentResultContent.vue';
 
 const { isInitialized, isLoading, error, currentReader, availableReaders, isReady, initialize, discoverReaders, connectReader, isConnected, disconnect, autoConnect, terminalService } = useTerminal();
 
@@ -157,6 +157,8 @@ amount.value = amount.value === '0' ? key : amount.value + key;
 const handlePayment = async () => {
   isProcessing.value = true;
   let countdownModal: HTMLIonModalElement | null = null;
+  let resultModal: HTMLIonModalElement | null = null;
+
 
   try {
     // Connect to terminal
@@ -207,6 +209,18 @@ const handlePayment = async () => {
       throw new Error(processResult.error.message);
     }
 
+    // Show success modal
+    resultModal = await modalController.create({
+      component: PaymentResultContent,
+      componentProps: {
+        success: true,
+        amount: parseFloat(amount.value),
+        message: 'Payment successful',
+      }
+    })
+
+    await resultModal.present();
+
     // Show success toast
     const toast = await toastController.create({
       message: 'Payment successful',
@@ -227,6 +241,19 @@ const handlePayment = async () => {
       icon: 'alert-circle'
     });
     await errorToast.present();
+
+    // Show error modal
+    resultModal = await modalController.create({
+      component: PaymentResultContent,
+      componentProps: {
+        success: false,
+        amount: parseFloat(amount.value),
+        message: error instanceof Error ? error.message : 'Payment failed',
+      }
+    })
+
+    await resultModal.present();
+    
   } finally {
     // Ensure modal is dismissed
     if (countdownModal) {
