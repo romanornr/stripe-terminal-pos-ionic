@@ -43,20 +43,6 @@
           <ion-button expand="block" color="primary" class="pay-button" @click="handlePayment">Pay with Terminal</ion-button>
         </div>
         
-        <ion-content class="ion-padding">
-          <ion-button @click="handleConnect">Discover & Connect</ion-button>
-          <p v-if="isConnected">Reader connected successfully!</p>
-          <p v-else>Not connected</p>
-        </ion-content>
-
-        <ion-card>
-          <ion-card-content>
-            <ion-text>
-              <h2> {{ isConnected }} {{ currentReader }} {{ isLoading }} {{ isInitialized }} {{ availableReaders }} {{ error }}</h2>
-            </ion-text>
-          </ion-card-content>
-        </ion-card>
-
         <!-- Terminal status -->
          <div class="terminal-status ion-padding-horizontal">
           <ion-chip :color="terminalStatus.color" class="terminal-chip">
@@ -100,10 +86,7 @@ onMounted(async () => {
 const isProcessing = ref(false);
 const errorMessage = ref('');
 
-// Reactive ref for connected state
-const connected = ref(false);
-
-// State 
+// State for the amount input
 const amount = ref('0');
 const keypadRows = [
   ['1', '2', '3'],
@@ -112,14 +95,20 @@ const keypadRows = [
   ['CLEAR', '0', '.'],
 ]
 
-// Terminal status states
-const terminalStates = {
-  ready: { color: 'success', icon: checkmarkCircle, text: 'Terminal ready'},
-  connecting: { color: 'warning', icon: syncCircle, text: 'Connecting to terminal...'},
-  disconnected: { color: 'danger', icon: alertCircle, text: 'Terminal disconnected'},
-};
+// Terminal status computed property to display the status of the terminal
+const terminalStatus = computed(() => {
+  if (isReady.value) {
+    return { color: 'success', icon: checkmarkCircle, text: 'Terminal ready'};
+  } else if (isLoading.value) {
+    return { color: 'warning', icon: syncCircle, text: 'Loading...'}
+  } else if (isConnected.value && !isReady.value) {
+    return { color: 'warning', icon: syncCircle, text: 'Intialized but not ready'}
+  } else {
+    return { color: 'danger', icon: alertCircle, text: 'Terminal disconnected'}
+  }
+})
 
-const terminalStatus = ref(terminalStates.disconnected)
+//const terminalStatus = ref(terminalStates.disconnected)
 
 const DisplayAmount = computed(() => {
  const num = parseFloat(amount.value)
@@ -182,7 +171,6 @@ const handlePayment = async () => {
       return;
     }
   }
-
 
   try {
     // Create payment intent
@@ -293,29 +281,7 @@ async function handleConnect() {
     console.error('Error initializing terminal service:', error);
     errorMessage.value = error.message || 'Failed to initialize terminal service';
   }
-
-  // try {
-  //   const reader = await stripeTerminal.connectAndInitializeReader();
-  //   console.log('Reader connected successfully at the frontend', reader);
-  //   connected.value = true;
-
-  //   // Show success toast
-  //   const toast = await toastController.create({
-  //     message: 'Reader connected successfully',
-  //     duration: 2000,
-  //     position: 'top',
-  //     color: 'success',
-  //     icon: 'checkmark-circle'
-  //   });
-  //   await toast.present();
-
-  //   terminalStatus.value = terminalStates.ready;
-
-  // } catch (error) {
-  //   console.error('Error connecting to reader', error);
-  // }
 }
-
 
 </script>
 
