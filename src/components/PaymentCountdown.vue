@@ -75,6 +75,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import { IonModal, IonContent, IonCard, IonCardContent, IonButton } from '@ionic/vue';
+import { DEFAULT_CONFIG } from '@/config/config';
 
 const props = defineProps({
   isOpen: {
@@ -87,7 +88,7 @@ const props = defineProps({
   },
   timeOut: {
     type: Number,
-    default: 15,
+    default: DEFAULT_CONFIG.timeoutMs / 1000,
   },
 })
 
@@ -95,7 +96,7 @@ const emit = defineEmits(['cancel', 'timeout']);
 
 // Timer logic
 const timeRemaining = ref(props.timeOut);
-const timerInterval =  ref<number | null>(null);
+const timerInterval = ref<number | null>(null);
 const maxTime = ref(props.timeOut);
 
 const progressOffset = computed(() => {
@@ -108,7 +109,6 @@ const formattedAmount = computed(() => {
   return props.amount.toFixed(2);
 });
 
-
 // Start countdown when component is mounted and modal is open
 watch(() => props.isOpen, (isOpen) => {
   if (isOpen) {
@@ -116,11 +116,12 @@ watch(() => props.isOpen, (isOpen) => {
   } else {
     stopCountdown();
   }
-});
+}, { immediate: true });
 
 // Timer functions
 function startCountdown() {
   timeRemaining.value = props.timeOut;
+  maxTime.value = props.timeOut;
 
   if (timerInterval.value) {
     clearInterval(timerInterval.value);
@@ -154,6 +155,10 @@ onUnmounted(() => {
   stopCountdown();
 });
 
+// Add default export
+defineOptions({
+  name: 'PaymentCountdown'
+});
 </script>
 
 

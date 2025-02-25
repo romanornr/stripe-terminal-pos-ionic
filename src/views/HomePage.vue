@@ -75,10 +75,13 @@ import { readonly, computed, ref } from 'vue';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 //import { stripeTerminal } from '@/services/stripeTerminal';
 import { checkmarkCircle, disc, syncCircle, terminal, alertCircle } from 'ionicons/icons';
-import { toastController } from '@ionic/vue';
+import { toastController, modalController } from '@ionic/vue';
 //import { terminalService } from '@/services/terminal-service';
 import { onMounted } from 'vue';
 import { useTerminal } from '@/composables/useTerminal';
+import { DEFAULT_CONFIG } from '@/config/config';
+import PaymentCountdown from '@/components/PaymentCountdown.vue';
+
 
 const { isInitialized, isLoading, error, currentReader, availableReaders, isReady, initialize, discoverReaders, connectReader, isConnected, disconnect, autoConnect, terminalService } = useTerminal();
 
@@ -153,6 +156,7 @@ amount.value = amount.value === '0' ? key : amount.value + key;
 
 const handlePayment = async () => {
   isProcessing.value = true;
+  let countdownModal: HTMLIonModalElement | null = null;
 
   try {
     // Connect to terminal
@@ -169,6 +173,28 @@ const handlePayment = async () => {
       throw new Error(createPaymentIntentResult.error.message);
     }
 
+    // Show countdown modal
+    countdownModal = await modalController.create({
+      component: PaymentCountdown,
+      componentProps: {
+        isOpen: true,
+        amount: parseFloat(amount.value),
+        timeOut: DEFAULT_CONFIG.timeoutMs / 1000, // Convert ms to seconds
+      }
+    });
+
+    await countdownModal.present();
+
+    // // Set up event listeners for the modal
+    // countdownModal.onDidDismiss().then(({ role }) => {
+    //   if (role === 'cancel' || role === 'timeout') {
+    //     // User canceled or timeout occurred
+    //     terminalService.terminal?.cancelCollectPaymentMethod().catch(err => {
+    //       console.warn('Error cancelling payment collection:', err);
+    //     });
+    //   }
+    // });
+
     // Collect payment method
     const collectResult = await terminalService.collectPaymentMethod(createPaymentIntentResult.data.client_secret);
     if (!collectResult.success) {
@@ -178,7 +204,6 @@ const handlePayment = async () => {
     // Process payment
     const processResult = await terminalService.processPayment(collectResult.data);
     if (!processResult.success) {
-      console.log('Payment processing failed:', processResult.error);
       throw new Error(processResult.error.message);
     }
 
@@ -203,6 +228,10 @@ const handlePayment = async () => {
     });
     await errorToast.present();
   } finally {
+    // Ensure modal is dismissed
+    if (countdownModal) {
+      await countdownModal.dismiss();
+    }
     isProcessing.value = false;
   }
 };
