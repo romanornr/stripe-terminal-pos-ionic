@@ -185,14 +185,6 @@ const handlePayment = async () => {
 
 
   try {
-    // // Connect to terminal
-    // try {
-    //   await autoConnect();
-    //   console.log('Terminal is connected. Current reader:', currentReader.value);
-    // } catch (error) {
-    //   throw new Error(error instanceof Error ? error.message : 'Failed to connect to terminal');
-    // }
-
     // Create payment intent
     const createPaymentIntentResult = await terminalService.createPaymentIntent(parseFloat(amount.value));
     if (!createPaymentIntentResult.success) {
@@ -211,7 +203,6 @@ const handlePayment = async () => {
 
     await countdownModal.present();
 
-    // // Set up event listeners for the modal
     // countdownModal.onDidDismiss().then(({ role }) => {
     //   if (role === 'cancel' || role === 'timeout') {
     //     // User canceled or timeout occurred
@@ -286,40 +277,6 @@ const handlePayment = async () => {
     isProcessing.value = false;
   }
 };
-
-  // try {
-  //   await handleConnect();
-    
-  //   console.log('Starting payment with amount:', amount.value);
-  //   const clientSecret = await stripeTerminal.createPaymentIntent(parseFloat(amount.value));
-    
-  //   // Change from collectTerminalPayment to collectPaymentMethod
-  //   const collectResult = await stripeTerminal.collectPaymentMethod(clientSecret);
-    
-  //   amount.value = '0';
-    
-  //   console.log('Collect result:', collectResult);
-  //   const processResult = await stripeTerminal.processTerminalPayment(collectResult);
-    
-  //   // Show success toast
-  //   const toast = await toastController.create({
-  //     message: 'Payment successful',
-  //     duration: 2000,
-  //     position: 'top',
-  //     color: 'success',
-  //     icon: 'checkmark-circle'
-  //   });
-  //   await toast.present();
-
-  //   terminalStatus.value = terminalStates.ready;
-
-  // } catch (error: any) {
-  //   console.error('Payment error:', error);
-  //   errorMessage.value = error.message || 'Payment failed';
-  // } finally {
-  //   isProcessing.value = false;
-  // }
-// };
 
 async function handleConnect() {
   try {
