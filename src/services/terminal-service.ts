@@ -211,17 +211,31 @@ export class TerminalService {
 
     try { 
       this.logger.info('Starting payment collection with client secret:', clientSecret);
-      const collectResult = await this.terminal.collectPaymentMethod(clientSecret);
+      const collectResult = await this.withTimeout(
+        this.terminal.collectPaymentMethod(clientSecret),
+        timeoutMs,
+        new Error('Payment collection timed out')
+      ) as CollectResult
 
       this.logger.info('Collection result:', JSON.stringify(collectResult, null, 2));
 
-      return { success: true, data: collectResult.paymentIntent };
+      if ('paymentIntent' in collectResult) {
+        return { success: true, data: collectResult.paymentIntent as PaymentIntent };
+      } else {
+        throw new TerminalError('PAYMENT_COLLECTION_FAILED', 'No payment intent in response');
+      }
     } catch (error) {
       this.state.lastError = error instanceof Error ? error.message : String(error);
       console.warn('Error during payment collection', error);
       // this is a hack to get the error message to the UI. It's not a good practice to do this. Better would be to use a global error handler.
       // TODO: Implement a global error handler
       // TODO: Add a timeout to the payment collection
+      try {
+        await this.terminal.cancelCollectPaymentMethod();
+        this.logger.info('collectPaymentMethod cancelled successfully');
+      } catch (cancelError) {
+        this.logger.warn('Error cancelling payment collection', cancelError);
+      }
       return { success: false, error: new TerminalError('PAYMENT_COLLECTION_FAILED', error instanceof Error ? error.message : 'Payment collection failed') }
     }
   }
@@ -275,23 +289,33 @@ export class TerminalService {
     }
   }
 
-  /**
-   * Helper function to handle timeouts for terminal operations
-   * @param promise - The promise to handle
-   * @param timeoutMs - The timeout in milliseconds
-   * @param timeOutError - The error to throw if the operation times out (default is a generic timeout error)
-   * @returns A promise that resolves to the result of the operation
-   */
-  private withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeOutError?: Error): Promise<T> {
-    let timeoutId: ReturnType<typeof setTimeout>;
-    const errorToThrow = timeOutError || new Error('Operation timed out');
-    return new Promise<T>((resolve, reject) => {
-      timeoutId = setTimeout(() => reject(errorToThrow), timeoutMs);
-      promise.then(resolve).catch(reject).finally(() => clearTimeout(timeoutId));
-    })
-  }
+//   /**
+//    * Helper function to handle timeouts for terminal operations
+//    * @param promise - The promise to handle
+//    * @param timeoutMs - The timeout in milliseconds
+//    * @param timeOutError - The error to throw if the operation times out (default is a generic timeout error)
+//    * @returns A promise that resolves to the result of the operation
+//    */
+//   private withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeOutError?: Error): Promise<T> {
+//     let timeoutId: ReturnType<typeof setTimeout>;
+//     const errorToThrow = timeOutError || new Error('Operation timed out');
+//     return new Promise<T>((resolve, reject) => {
+//       timeoutId = setTimeout(() => reject(errorToThrow), timeoutMs);
+//       promise.then(resolve).catch(reject).finally(() => clearTimeout(timeoutId));
+//     })
+//   }
+// }
+
+private withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutError?: Error): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const errorToThrow = timeoutError || new Error('Operation timed out');
+  return new Promise<T>((resolve, reject) => {
+    timeoutId = setTimeout(() => reject(errorToThrow), timeoutMs);
+    promise.then(resolve, reject);
+  }).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
 }
 
 export const terminalService = new TerminalService();
-
-
