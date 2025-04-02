@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'io.ionic.starter',
-  appName: 'stripe-terminal-pos-ionic',
+  appName: 'stripe-terminal',
   webDir: 'dist',
   plugins: {
     SplashScreen: {
