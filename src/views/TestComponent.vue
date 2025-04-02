@@ -96,7 +96,7 @@
   </ion-page>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton, 
          IonCard, IonCardHeader, IonCardTitle, IonCardContent,

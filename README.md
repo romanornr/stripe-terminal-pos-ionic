@@ -83,8 +83,26 @@ A mobile Point of Sale (POS) application built with Ionic Vue and Stripe Termina
 
 3. For Android deployment:
    ```bash
+   # Add Android platform (if not already added)
    ionic cap add android
+
+   # Sync web build to Android platform
+   ionic cap sync android
+
+   # Method 1: Open in Android Studio (recommended)
    ionic cap open android
+
+   # Method 2: Build from command line
+   cd android
+
+   # Set JAVA_HOME if needed (example for OpenJDK)
+   export JAVA_HOME=/path/to/your/java/installation
+
+   # Build a debug APK
+   ./gradlew assembleDebug
+
+   # The APK will be available at:
+   # android/app/build/outputs/apk/debug/app-debug.apk
    ```
 
 ## Project Structure

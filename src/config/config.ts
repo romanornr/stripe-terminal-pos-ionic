@@ -15,7 +15,7 @@ export interface TerminalConfig {
 
 // Default configuration for the terminal
 export const DEFAULT_CONFIG: TerminalConfig= {
-  baseUrl: 'http://localhost:4242',
+  baseUrl: 'http://192.168.2.6:4242',
   timeoutMs: 25000,
   currency: 'eur',
   logLevel: 'info',

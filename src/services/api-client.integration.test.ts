@@ -1,7 +1,7 @@
 import { ApiClient } from './api-client';
 import { TerminalConfig } from '@/config/config';
 import { Logger } from '@/logger/Logger';
-import { describe, it, expect, beforeAll, fail } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { DEFAULT_CONFIG } from '@/config/config';
 
 describe('ApiClient Integration Tests', () => {

@@ -33,8 +33,8 @@
   </div>
 </template>
 
-<script setup>
-import { computed } from 'vue';
+<script setup lang="ts">
+import { computed, ref } from 'vue';
 import { modalController, IonCard, IonCardContent, IonButton, IonIcon } from '@ionic/vue';
 import { checkmarkOutline, closeOutline } from 'ionicons/icons';
 
@@ -57,7 +57,10 @@ const formattedAmount = computed(() => {
   return props.amount.toFixed(2);
 });
 
-function dismiss(action) {
+const onResultDone = ref(false);
+const onResultRetry = ref(false);
+
+function dismiss(action: 'done' | 'retry') {
   modalController.dismiss({ action });
 }
 </script>
