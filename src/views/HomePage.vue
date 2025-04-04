@@ -20,7 +20,9 @@
           </ion-text>
          <ion-item lines="none" class="amount-input-container">
           <ion-input :value="amount" :readonly="true" placeholder="0.00" type="text" inputmode="decimal" class="amount-input">
-            <div slot="start" class="currency-symbol">€</div>
+            <template v-slot:start>
+              <div class="currency-symbol">€</div>
+            </template>
           </ion-input>
           
          </ion-item>
@@ -50,6 +52,25 @@
             <ion-label>{{  terminalStatus.text }}</ion-label>
           </ion-chip>
          </div>
+
+         <!-- Add temporary buttons for testing -->
+         <ion-grid>
+           <ion-row>
+             <ion-col>
+                <ion-button expand="block" @click="testInitialize">Initialize</ion-button>
+             </ion-col>
+             <ion-col>
+               <ion-button expand="block" @click="testDiscover">Discover</ion-button>
+             </ion-col>
+             <ion-col>
+                <ion-button expand="block" @click="testConnect" :disabled="!currentReader">Connect</ion-button>
+             </ion-col>
+           </ion-row>
+         </ion-grid>
+         <ion-item v-if="currentReader">
+            <ion-label>Selected: {{ currentReader.serialNumber }} (Status: {{ isConnected ? 'Connected' : 'Disconnected' }})</ion-label>
+         </ion-item>
+         <!-- End temporary buttons -->
   </ion-content>
 </ion-page>
 
@@ -66,21 +87,35 @@ import { toastController, modalController } from '@ionic/vue';
 import { onMounted } from 'vue';
 import { useTerminal } from '@/composables/useTerminal';
 import { DEFAULT_CONFIG } from '@/config/config';
-import PaymentCountdown from '@/components/PaymentCountdown.vue';
-import PaymentResultContent from '@/components/PaymentResultContent.vue';
+//import PaymentCountdown from '@/components/PaymentCountdown.vue';
+//import PaymentResultContent from '@/components/PaymentResultContent.vue';
+import type { Reader } from '@/types/terminalTypes';
 
-const { isInitialized, isLoading, error, currentReader, availableReaders, isReady, initialize, discoverReaders, connectReader, isConnected, disconnect, autoConnect, terminalService } = useTerminal();
+const {
+  isLoading,
+  isReady,
+  lastError,
+  currentReader,
+  isConnected,
+  initialize,
+  discoverReaders,
+  connectReader,
+  disconnect,
+  autoConnect,
+  terminalService
+} = useTerminal();
 
 // optionally initialize on component mount
 onMounted(async () => {
-  try {
-    await autoConnect();
-    console.log('Terminal initialized');
-  } catch (error) {
-    console.error('Error initializing terminal:', error);
-  } finally {
-    console.log('Terminal initialization complete');
-  }
+  console.log('HomePage mounted. Manual initialization needed.');
+  // try {
+  //   await autoConnect();
+  //   console.log('Terminal initialized');
+  // } catch (error) {
+  //   console.error('Error initializing terminal:', error);
+  // } finally {
+  //   console.log('Terminal initialization complete');
+  // }
 });
 
 const isProcessing = ref(false);
@@ -144,6 +179,7 @@ amount.value = amount.value === '0' ? key : amount.value + key;
 
 
 const handlePayment = async () => {
+  console.warn("handlePayment needs refactoring for the new terminal service!");
   isProcessing.value = true;
   let countdownModal: HTMLIonModalElement | null = null;
   let resultModal: HTMLIonModalElement | null = null;
@@ -267,19 +303,51 @@ const handlePayment = async () => {
 };
 
 async function handleConnect() {
+  console.warn("handleConnect needs refactoring for the new terminal service!");
+  // try {
+  //   await terminalService.initialize();
+  //   const disoveredReaders = await terminalService.discoverReaders();
+  //   const connectedReader = await terminalService.connectReader(disoveredReaders.data[0]);
+  //   const connected = connectedReader.success;
+  //   if (disoveredReaders.success) {
+  //     console.log('Disovered readers:', disoveredReaders.data);
+  //   } else {
+  //     console.error('Error discovering readers:', disoveredReaders.error);
+  //   }
+  // } catch (error: any) {
+  //   console.error('Error initializing terminal service:', error);
+  //   errorMessage.value = error.message || 'Failed to initialize terminal service';
+  // }
+}
+
+const discoveredReaderForTest = ref<Reader | null>(null);
+
+async function testInitialize() {
+  console.log('Manual Test: Initializing...');
+  await initialize();
+  console.log('Manual Test: Initialize complete.');
+}
+
+async function testDiscover() {
+  console.log('Manual Test: Requesting Discovery...');
+  // Just call discoverReaders to start the process
+  // The listener in the service will hopefully update the currentReader state
+  await discoverReaders();
+  console.log('Manual Test: Discovery requested. Check state/logs for results.');
+  // UI should react to currentReader changing
+}
+
+async function testConnect() {
+  if (!currentReader.value) {
+     console.error('Manual Test: Cannot connect, currentReader is null.');
+     return;
+  }
+  console.log('Manual Test: Connecting to currentReader:', currentReader.value.serialNumber);
   try {
-    await terminalService.initialize();
-    const disoveredReaders = await terminalService.discoverReaders();
-    const connectedReader = await terminalService.connectReader(disoveredReaders.data[0]);
-    const connected = connectedReader.success;
-    if (disoveredReaders.success) {
-      console.log('Disovered readers:', disoveredReaders.data);
-    } else {
-      console.error('Error discovering readers:', disoveredReaders.error);
-    }
-  } catch (error: any) {
-    console.error('Error initializing terminal service:', error);
-    errorMessage.value = error.message || 'Failed to initialize terminal service';
+     await connectReader({ reader: currentReader.value });
+     console.log('Manual Test: Connect call finished. Check isConnected state:', isConnected.value);
+  } catch (err) {
+     console.error('Manual Test: Connect failed', err);
   }
 }
 
