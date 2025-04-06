@@ -178,34 +178,93 @@ const handlePayment = async () => {
     if (!createPaymentIntentResult.success) {
       throw new Error(createPaymentIntentResult.error.message);
     }
+    
+    // Wrapper variable to track cancellation state
+    let isCancelled = false;
 
-    // Show countdown modal
+    // Define a payment cancelled flag
+    let paymentCancelled = false;
+    
+    // Define cancel handler
+    const cancelHandler = async () => {
+      console.log('Payment cancelHandler called');
+      paymentCancelled = true;
+      
+      try {
+        // Cancel the payment on the terminal
+        await terminalService.cancelPaymentCollection();
+        
+        // Show toast notification
+        const toast = await toastController.create({
+          message: 'Payment cancelled',
+          duration: 3000,
+          position: 'top',
+          color: 'warning'
+        });
+        await toast.present();
+        
+        // Make sure the modal is dismissed on the next tick
+        setTimeout(() => {
+          if (countdownModal) {
+            countdownModal.dismiss();
+          }
+        }, 0);
+      } catch (err) {
+        console.warn('Error during payment cancellation:', err);
+      }
+    };
+    
+    // Create and present the modal
     countdownModal = await modalController.create({
       component: PaymentCountdown,
       componentProps: {
         isOpen: true,
         amount: parseFloat(amount.value),
-        timeOut: DEFAULT_CONFIG.timeoutMs / 1000, // Convert ms to seconds
+        timeOut: DEFAULT_CONFIG.timeoutMs / 1000,
+        onCancel: cancelHandler
       }
     });
-
+    
+    // Two state variables to track payment flow
+    let paymentCollected = false;
+    
+    // Set up event handler for modal dismiss
+    countdownModal.onDidDismiss().then(() => {
+      console.log('Modal was dismissed');
+      // Only mark as cancelled if dismissed before payment collection is complete
+      if (!paymentCollected) {
+        console.log('Payment cancelled due to modal dismissal');
+        paymentCancelled = true;
+      }
+    });
+    
+    // Present the modal
     await countdownModal.present();
 
-    // countdownModal.onDidDismiss().then(({ role }) => {
-    //   if (role === 'cancel' || role === 'timeout') {
-    //     // User canceled or timeout occurred
-    //     terminalService.terminal?.cancelCollectPaymentMethod().catch(err => {
-    //       console.warn('Error cancelling payment collection:', err);
-    //     });
-    //   }
-    // });
-
-    // Collect payment method
+    // Start the payment collection process
+    if (!createPaymentIntentResult.success) {
+      throw new Error('Failed to create payment intent');
+    }
+      
     const collectResult = await terminalService.collectPaymentMethod(createPaymentIntentResult.data.client_secret);
     if (!collectResult.success) {
       throw new Error(collectResult.error.message);
     }
+    
+    // Mark payment as successfully collected
+    paymentCollected = true;
+    
+    // At this point, payment was collected successfully
+    // Dismiss the modal
+    if (countdownModal) {
+      await countdownModal.dismiss();
+    }
 
+    // Check if payment was cancelled during collection
+    if (paymentCancelled) {
+      throw new Error('Payment was cancelled');
+    }
+    
     // Process payment
     const processResult = await terminalService.processPayment(collectResult.data);
     if (!processResult.success) {
@@ -220,7 +279,7 @@ const handlePayment = async () => {
         amount: parseFloat(amount.value),
         message: 'Payment successful',
       }
-    })
+    });
 
     await resultModal.present();
 
@@ -236,26 +295,32 @@ const handlePayment = async () => {
   } catch (error) {
     console.error('Payment error:', error);
     
-    const errorToast = await toastController.create({
-      message: error instanceof Error ? error.message : 'Payment failed',
-      duration: 5000,
-      position: 'top',
-      color: 'danger',
-      icon: 'alert-circle'
-    });
-    await errorToast.present();
+    // Check if this was a user cancellation (to avoid showing error for user-initiated cancellations)
+    const errorMessage = error instanceof Error ? error.message : 'Payment failed';
+    const wasCancelled = errorMessage.includes('cancelled') || errorMessage.includes('canceled');
+    
+    if (!wasCancelled) {
+      const errorToast = await toastController.create({
+        message: errorMessage,
+        duration: 5000,
+        position: 'top',
+        color: 'danger',
+        icon: 'alert-circle'
+      });
+      await errorToast.present();
 
-    // Show error modal
-    resultModal = await modalController.create({
-      component: PaymentResultContent,
-      componentProps: {
-        success: false,
-        amount: parseFloat(amount.value),
-        message: error instanceof Error ? error.message : 'Payment failed',
-      }
-    })
+      // Show error modal
+      resultModal = await modalController.create({
+        component: PaymentResultContent,
+        componentProps: {
+          success: false,
+          amount: parseFloat(amount.value),
+          message: errorMessage,
+        }
+      });
 
-    await resultModal.present();
+      await resultModal.present();
+    }
     
   } finally {
     // Ensure modal is dismissed
@@ -270,6 +335,11 @@ async function handleConnect() {
   try {
     await terminalService.initialize();
     const disoveredReaders = await terminalService.discoverReaders();
+    // Add type check to handle the case where discoverReaders returns an error
+    if (!disoveredReaders.success) {
+      throw new Error(disoveredReaders.error.message);
+    }
+    
     const connectedReader = await terminalService.connectReader(disoveredReaders.data[0]);
     const connected = connectedReader.success;
     if (disoveredReaders.success) {

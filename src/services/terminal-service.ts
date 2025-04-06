@@ -271,6 +271,27 @@ export class TerminalService {
   //   }
   // }
 
+  /**
+   * Cancels an ongoing payment collection
+   * @returns Promise<boolean> True if cancellation was successful
+   */
+  async cancelPaymentCollection(): Promise<boolean> {
+    if (!this._terminal) {
+      this.logger.warn('Cannot cancel payment collection: Terminal is not initialized');
+      return false;
+    }
+    
+    try {
+      this.logger.info('Cancelling payment collection...');
+      await this._terminal.cancelCollectPaymentMethod();
+      this.logger.info('Payment collection cancelled successfully');
+      return true;
+    } catch (error) {
+      this.logger.warn('Error cancelling payment collection', error);
+      return false;
+    }
+  }
+
   async processPayment(paymentIntent: PaymentIntent): Promise<ProcessPaymentResult<PaymentIntent>> {
     this.state.isLoading = true;
     try {

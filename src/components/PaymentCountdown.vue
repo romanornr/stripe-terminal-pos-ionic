@@ -90,6 +90,14 @@ const props = defineProps({
     type: Number,
     default: DEFAULT_CONFIG.timeoutMs / 1000,
   },
+  onCancel: {
+    type: Function,
+    default: () => {},
+  },
+  onTimeout: {
+    type: Function,
+    default: () => {},
+  }
 })
 
 const emit = defineEmits(['cancel', 'timeout']);
@@ -133,6 +141,10 @@ function startCountdown() {
     if (timeRemaining.value <= 0) {
       stopCountdown();
       emit('timeout');
+      // Call the onTimeout prop function if provided
+      if (props.onTimeout && typeof props.onTimeout === 'function') {
+        props.onTimeout();
+      }
     }
   }, 1000) as unknown as number;
 }
@@ -148,6 +160,10 @@ function stopCountdown() {
 function onCancel() {
   stopCountdown();
   emit('cancel');
+  // Call the onCancel prop function if provided
+  if (props.onCancel && typeof props.onCancel === 'function') {
+    props.onCancel();
+  }
 }
 
 // Cleanup on unmount
