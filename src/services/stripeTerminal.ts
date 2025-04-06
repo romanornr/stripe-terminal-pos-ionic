@@ -149,6 +149,7 @@ class StripeTerminalService {
         onFetchConnectionToken: async () => {
           const response = await fetch(CONNECTION_TOKEN_ENDPOINT, { method: 'POST' });
           const responseJson = await response.json();
+          console.log('Response from connection token endpoint', responseJson)
           if (!responseJson.data?.secret) {
             throw new Error('Invalid connection token response: missing secret')
           }

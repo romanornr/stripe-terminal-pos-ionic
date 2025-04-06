@@ -27,15 +27,17 @@ export class ApiClient {
   async getConnectionToken(): Promise<Result<string>> {
     try {
       this.logger.debug('Fetching connection token from', this.config.baseUrl);
-      const { data } = await this.client.post<{ data: { secret: string }, error: null | string }>(
+      const { data } = await this.client.post<{ secret: string } | { data: { secret: string }, error: null | string }>(
         this.config.endpoints.connectionToken
       );
 
-      this.logger.debug('Connection token:', data);
-      if (!data?.data?.secret) {
+      this.logger.debug('Connection token response:', data);
+      
+      if ('secret' in data) {
+        return { success: true, data: data.secret };
+      } else {
         throw new TerminalError('CONNECTION_TOKEN_FAILED', 'Invalid response structure');
       }
-      return { success: true, data: data.data.secret };
     } catch (error) {
       return {
         success: false,
