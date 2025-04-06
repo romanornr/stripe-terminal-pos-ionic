@@ -327,6 +327,11 @@ const handlePayment = async () => {
     if (countdownModal) {
       await countdownModal.dismiss();
     }
+    
+    // Reset the amount input after any payment outcome
+    amount.value = '0';
+    
+    // Reset processing state
     isProcessing.value = false;
   }
 };
