@@ -15,9 +15,9 @@ export interface TerminalConfig {
 
 // Default configuration for the terminal
 export const DEFAULT_CONFIG: TerminalConfig= {
-  baseUrl: import.meta.env.VITE_API_BASEURL,
+  baseUrl: import.meta.env.VITE_API_BASEURL as string,
   timeoutMs: 25000,
-  currency: 'eur',
+  currency: 'eur',// In config.ts
   logLevel: 'info',
   endpoints: {
     connectionToken: '/connection-token',
