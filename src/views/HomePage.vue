@@ -20,7 +20,7 @@
           </ion-text>
          <ion-item lines="none" class="amount-input-container">
           <ion-input :value="amount" :readonly="true" placeholder="0.00" type="text" inputmode="decimal" class="amount-input">
-            <div slot="start" class="currency-symbol">€</div>
+            <div class="currency-symbol ion-margin-end">€</div>
           </ion-input>
           
          </ion-item>
@@ -38,25 +38,30 @@
         </ion-row>
        </ion-grid>
        
-       <!-- Pay button -->
+       <!-- Spacer to ensure content doesn't get hidden behind footer -->
+        <div style="height: 60px;"></div>
+        
+        <!-- Pay button -->
         <div class="pay-button-container ion-padding">
           <ion-button expand="block" color="primary" class="pay-button" @click="handlePayment">Pay with Terminal</ion-button>
         </div>
-        
-        <!-- Terminal status -->
-         <div class="terminal-status ion-padding-horizontal">
-          <ion-chip :color="terminalStatus.color" class="terminal-chip">
-            <ion-icon :icon="terminalStatus.icon"></ion-icon>
-            <ion-label>{{  terminalStatus.text }}</ion-label>
-          </ion-chip>
-         </div>
   </ion-content>
+
+  <!-- Terminal Status Footer -->
+  <ion-footer class="ion-no-border">
+    <ion-toolbar>
+      <ion-chip :color="terminalStatus.color" class="terminal-status-chip">
+        <ion-icon :icon="terminalStatus.icon"></ion-icon>
+        <ion-label>{{ terminalStatus.text }}</ion-label>
+      </ion-chip>
+    </ion-toolbar>
+  </ion-footer>
 </ion-page>
 
 </template>
 
 <script setup lang="ts">
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonGrid, IonRow, IonCol, IonButton, IonInput, IonCard, IonCardContent, IonText, IonItem } from '@ionic/vue';
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonGrid, IonRow, IonCol, IonButton, IonInput, IonCard, IonCardContent, IonText, IonItem, IonChip, IonLabel, IonIcon, IonFooter } from '@ionic/vue';
 import { readonly, computed, ref } from 'vue';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 //import { stripeTerminal } from '@/services/stripeTerminal';
@@ -440,20 +445,19 @@ ion-col {
   --ripple-color: rgba(255, 255, 255, 0.2);
 }
 
-.terminal-status {
-  display: flex;
-  justify-content: center;
-  position: absolute;
-  bottom: 0;
+/* Terminal status chip in footer */
+.terminal-status-chip {
   width: 100%;
+  margin: 0;
+  border-radius: 0;
 }
 
-.terminal-chip {
-  height: 44px;
-  width: 100%;
-  justify-content: center;
-  --background: var(--ion-color-success-light);
-  --color: var(--ion-color-success-shade);
+/* Make ion-footer background transparent */
+ion-footer ion-toolbar {
+  --background: transparent;
+  --border-color: transparent;
+  --min-height: 44px;
+  padding: 0;
 }
 
 /* Added iOS-specific shadow */
