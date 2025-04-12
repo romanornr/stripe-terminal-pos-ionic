@@ -12,6 +12,7 @@ describe('ApiClient Integration Tests', () => {
     const config: TerminalConfig = {
       baseUrl: 'http://localhost:4242',  // Make sure your server is running on this port
       timeoutMs: 5000,
+      httpTimeoutMs: 5000,
       currency: 'eur',
       logLevel: 'info',
       endpoints: {

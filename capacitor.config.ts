@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 // Load environment variables using standard Node.js approach
 const appId = process.env.VITE_APP_ID || 'io.ionic.starter';
-const appName = process.env.VITE_APP_NAME || 'Stripe Terminal Example';
+const appName = process.env.VITE_APP_NAME || 'Stripe Terminal';
 
 const config: CapacitorConfig = {
   appId,

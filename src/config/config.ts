@@ -3,7 +3,8 @@
 // Terminal configuration interface
 export interface TerminalConfig {
   baseUrl: string;
-  timeoutMs: number;
+  timeoutMs: number;    // For terminal payment process 
+  httpTimeoutMs: number // For HTTP requests
   currency: string;
   logLevel: string;
   endpoints: {
@@ -17,7 +18,8 @@ export interface TerminalConfig {
 export const DEFAULT_CONFIG: TerminalConfig= {
   baseUrl: import.meta.env.VITE_API_BASEURL as string,
   timeoutMs: 60000, // 1 minute waiting before payment is cancelled
-  currency: 'eur',// In config.ts
+  httpTimeoutMs: 10000, // 10 seconds
+  currency: 'eur',  // In config.ts
   logLevel: 'info',
   endpoints: {
     connectionToken: '/connection-token',
