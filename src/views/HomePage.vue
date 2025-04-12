@@ -2,13 +2,13 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
-        <ion-title>Payment Refactored</ion-title>
+        <ion-title>Stripe Payment Terminal</ion-title>
       </ion-toolbar>
     </ion-header>
     <ion-content class="ion-padding">
       <ion-header collapse="condense">
         <ion-toolbar>
-          <ion-title size="large">Payment Refactored</ion-title>
+          <ion-title size="large">Stripe Payment Terminal</ion-title>
         </ion-toolbar>
       </ion-header>
 
