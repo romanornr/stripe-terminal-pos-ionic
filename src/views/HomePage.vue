@@ -2,13 +2,13 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
-        <ion-title>Payment</ion-title>
+        <ion-title>Payment Refactored</ion-title>
       </ion-toolbar>
     </ion-header>
     <ion-content class="ion-padding">
       <ion-header collapse="condense">
         <ion-toolbar>
-          <ion-title size="large">Payment</ion-title>
+          <ion-title size="large">Payment Refactored</ion-title>
         </ion-toolbar>
       </ion-header>
 
@@ -18,33 +18,24 @@
           <ion-text color="medium">
             <h2>Amount</h2>
           </ion-text>
-         <ion-item lines="none" class="amount-input-container">
-          <ion-input :value="amount" :readonly="true" placeholder="0.00" type="text" inputmode="decimal" class="amount-input">
-            <div class="currency-symbol ion-margin-end">€</div>
-          </ion-input>
-          
-         </ion-item>
+          <ion-item lines="none" class="amount-input-container">
+            <ion-input :value="amount" :readonly="true" placeholder="0.00" type="text" inputmode="decimal" class="amount-input">
+              <div class="currency-symbol ion-margin-end">€</div>
+            </ion-input>
+          </ion-item>
         </ion-card-content>
       </ion-card>
       
-      <!-- Numeric keypad-->
-       <ion-grid class="keypad">
-        <ion-row v-for="row in keypadRows" :key="row[0]">
-          <ion-col size="4" v-for="key in row" :key="key">
-            <ion-button expand="block" fill="solid" class="keypad-btn" @click="handleKeyPress(key)">
-              {{ key }}
-            </ion-button>
-          </ion-col>
-        </ion-row>
-       </ion-grid>
-       
-       <!-- Spacer to ensure content doesn't get hidden behind footer -->
-        <div style="height: 60px;"></div>
-        
-        <!-- Pay button -->
-        <div class="pay-button-container ion-padding">
-          <ion-button expand="block" color="primary" class="pay-button" @click="handlePayment">Pay with Terminal</ion-button>
-        </div>
+      <!-- Numeric keypad - Now using the extracted component -->
+      <NumericKeypad v-model="amount" />
+      
+      <!-- Spacer to ensure content doesn't get hidden behind footer -->
+      <div style="height: 60px;"></div>
+      
+      <!-- Pay button -->
+      <div class="pay-button-container ion-padding">
+        <ion-button expand="block" color="primary" class="pay-button" @click="handlePayment">Pay with Terminal</ion-button>
+      </div>
   </ion-content>
 
   <!-- Terminal Status Footer -->
@@ -61,18 +52,22 @@
 </template>
 
 <script setup lang="ts">
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonGrid, IonRow, IonCol, IonButton, IonInput, IonCard, IonCardContent, IonText, IonItem, IonChip, IonLabel, IonIcon, IonFooter } from '@ionic/vue';
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton, IonInput, IonCard, IonCardContent, IonText, IonItem, IonChip, IonLabel, IonIcon, IonFooter } from '@ionic/vue';
 import { readonly, computed, ref } from 'vue';
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
-//import { stripeTerminal } from '@/services/stripeTerminal';
 import { checkmarkCircle, disc, syncCircle, terminal, alertCircle } from 'ionicons/icons';
 import { toastController, modalController } from '@ionic/vue';
-//import { terminalService } from '@/services/terminal-service';
 import { onMounted } from 'vue';
 import { useTerminal } from '@/composables/useTerminal';
 import { DEFAULT_CONFIG } from '@/config/config';
+// NOTE: The following imports may show Vetur errors about missing default exports.
+// This is expected with Vue 3's <script setup> syntax which doesn't require explicit exports.
+// These warnings don't affect runtime functionality and can be safely ignored.
+//
+// In a production environment, you could add a default export to each component:
+// export default { name: 'ComponentName' }; // Add this after the <script setup> block
 import PaymentCountdown from '@/components/PaymentCountdown.vue';
 import PaymentResultContent from '@/components/PaymentResultContent.vue';
+import NumericKeypad from '@/components/NumericKeypad.vue';
 
 const { isInitialized, isLoading, error, currentReader, availableReaders, isReady, initialize, discoverReaders, connectReader, isConnected, disconnect, autoConnect, terminalService } = useTerminal();
 
@@ -93,12 +88,8 @@ const errorMessage = ref('');
 
 // State for the amount input
 const amount = ref('0');
-const keypadRows = [
-  ['1', '2', '3'],
-  ['4', '5', '6'],
-  ['7', '8', '9'],
-  ['CLEAR', '0', '.'],
-]
+// Removed keypadRows array as it's now in the NumericKeypad component
+// Removed handleKeyPress function as it's now in the NumericKeypad component
 
 // Terminal status computed property to display the status of the terminal
 const terminalStatus = computed(() => {
@@ -113,40 +104,10 @@ const terminalStatus = computed(() => {
   }
 })
 
-//const terminalStatus = ref(terminalStates.disconnected)
-
 const DisplayAmount = computed(() => {
  const num = parseFloat(amount.value)
  return isNaN(num) ? '0.00' : num.toFixed(2)
 });
-
-const handleKeyPress = (key: string) => {
-  Haptics.impact({ style: ImpactStyle.Light }); // Haptic feedback
-  if (key === 'CLEAR') {
-    amount.value = '0';
-    return;
-  }
-  if (key === '.') { // only add ',' if it's not already there
-    // only add ',' if it's not already there
-    if (!amount.value.includes('.')) {
-      amount.value += key;
-  }
-  return;
-}
-
-// For numeric keys, check if we already have a decimal and limit the numbers of digits after the decimal
-const decimalIndex = amount.value.indexOf('.');
-if (decimalIndex !== -1) {
-  const decimalPart = amount.value.slice(decimalIndex + 1);
-  if (decimalPart.length > 2) {
-    return; // if already have 2 digits, do nothing
-  }
-}
-
-// appent the numeric key, but if the current value is '0', replace it with the key
-amount.value = amount.value === '0' ? key : amount.value + key;
-};
-
 
 const handlePayment = async () => {
   isProcessing.value = true;
@@ -163,7 +124,6 @@ const handlePayment = async () => {
         throw new Error('Failed to connect to terminal');
       }
     } catch (error) {
-      //throw new Error(error instanceof Error ? error.message : 'Failed to connect to terminal');
       const errorMsg = error instanceof Error ? error.message : 'Terminal connection failed';
       const toast = await toastController.create({
         message: errorMsg,
@@ -344,18 +304,19 @@ const handlePayment = async () => {
 async function handleConnect() {
   try {
     await terminalService.initialize();
-    const disoveredReaders = await terminalService.discoverReaders();
+    const discoveredReaders = await terminalService.discoverReaders();
     // Add type check to handle the case where discoverReaders returns an error
-    if (!disoveredReaders.success) {
-      throw new Error(disoveredReaders.error.message);
+    if (!discoveredReaders.success) {
+      throw new Error(discoveredReaders.error.message);
     }
     
-    const connectedReader = await terminalService.connectReader(disoveredReaders.data[0]);
+    const connectedReader = await terminalService.connectReader(discoveredReaders.data[0]);
     const connected = connectedReader.success;
-    if (disoveredReaders.success) {
-      console.log('Disovered readers:', disoveredReaders.data);
+    if (discoveredReaders.success) {
+      console.log('Discovered readers:', discoveredReaders.data);
     } else {
-      console.error('Error discovering readers:', disoveredReaders.error);
+      // Use type assertion to handle the error property
+      console.error('Error discovering readers:', (discoveredReaders as any).error?.message || 'Unknown error');
     }
   } catch (error: any) {
     console.error('Error initializing terminal service:', error);
@@ -366,7 +327,6 @@ async function handleConnect() {
 </script>
 
 <style scoped>
-
 .amount-display {
   margin: 0;
   border-radius: 12px;
@@ -398,31 +358,6 @@ async function handleConnect() {
   margin-right: 4px;
   color: var(--ion-color-dark);
 }
-
-ion-col {
-  padding: 4px;
-}
-
-.keypad {
-  padding: 0;
-  background-color: #f1f5f9
-}
-
-.keypad-btn {
-  margin: 4px;
-  height: 76px;
-  width: 100%;
-  font-size: 24px;
-  font-weight: 400;
-  --border-radius: 12px;
-  --background: #ffffff;
-  --color: #1f1f1f;
-    --box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  --padding-top: 0; 
-  --padding-bottom: 0;
-  --ripple-color: rgba(0, 0, 0, 0.1);
-}
-
 
 .pay-button-container {
   bottom: 70px;
@@ -459,16 +394,4 @@ ion-footer ion-toolbar {
   --min-height: 44px;
   padding: 0;
 }
-
-/* Added iOS-specific shadow */
-.ios .keypad-btn {
-  --box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-}
-
-/* Material Design specific styles */
-.md .keypad-btn {
-  --box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
 </style>
